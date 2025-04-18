@@ -1,45 +1,54 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
-import java.time.LocalDate;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @RestController
+@RequestMapping("/films")
 public class FilmController {
-    private final Map<Long, Film> films = new HashMap<>();
+    private final Map<Integer, Film> films = new HashMap<>();
+    private final Logger log = LoggerFactory.getLogger(FilmController.class);
 
     @PostMapping
     public Film add(@RequestBody Film film) {
-        validation(film);
+        log.info("Получен запрос на добавление фильма");
+        film.validation();
+        film.setId(getNextId());
+        films.put(film.getId(), film);
+        log.info("Добавлен фильм: {}", film);
+        return film;
     }
 
     @PutMapping
-    public Film update(@RequestBody Film film) {
-        validation(film);
+    public Film update(@RequestBody Film newFilm) {
+        log.info("Получен запрос на обновление фильма");
+        if (!films.containsKey(newFilm.getId())){
+            log.error("Фильм с ID {} не найден", newFilm.getId());
+            throw new ValidationException("Фильма с указанным ID не существует");
+        }
+        newFilm.validation();
+        films.put(newFilm.getId(), newFilm);
+        log.info("Фильм обновлен на новый: {}", newFilm);
+        return newFilm;
     }
 
     @GetMapping
-    public Collection<Film> getAll() {
-        return films.values();
+    public List<Film> getAll() {
+        log.info("Получен запрос на получение всех фильмов");
+        log.info("Список всех фильмов получен");
+        return new ArrayList<>(films.values());
     }
 
-    private void validation(@RequestBody Film valFilm){
-        if (valFilm.getName()==null){
-            throw new ValidationException("Название не может быть пустым");
-        }
-        if (valFilm.getDescription().length()>200){
-            throw new ValidationException("Максимальная длина описания - 200 символов");
-        }
-        if (valFilm.getReleaseDate().isBefore(LocalDate.of(1895, 12,28))){
-            throw new ValidationException("Дата релиза - не раньше 28 декабря 1895 года");
-        }
-        if (valFilm.getDuration().toMinutes()<0){
-            throw new ValidationException("Продолжительность должна быть положительной");
-        }
+    private int getNextId() {
+        int currentId = films.keySet().stream()
+                .mapToInt(id -> id)
+                .max()
+                .orElse(0);
+        return ++currentId;
     }
 }
