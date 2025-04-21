@@ -2,32 +2,20 @@ package ru.yandex.practicum.filmorate.model;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.annotation.MinimumDate;
 
-import java.time.Duration;
 import java.time.LocalDate;
 
 
 @Data
 public class Film {
     private int id;
-    @NotBlank
+    @NotBlank(message = "Название не может быть пустым")
     private String name;
-    @Size(max = 200, message = "Максимальная длина описания - 200 сиимволов")
+    @Size(max = 200, message = "Максимальная длина описания - 200 символов")
     private String description;
-    @NotNull(message = "Дата релиза должна быть указана")
+    @MinimumDate(value = "1895-12-28", message = "Дата релиза - не раньше 28 декабря 1895 года")
     private LocalDate releaseDate;
     @Positive(message = "Продолжительность должна быть больше 0")
-    private Duration duration;
-
-    private final Logger log = LoggerFactory.getLogger(Film.class);
-
-    public void validation() {
-        if (releaseDate.isBefore(LocalDate.of(1895, 12, 28))) {
-            log.warn("Дата релиза {} некорректна", releaseDate);
-            throw new ValidationException("Дата релиза - не раньше 28 декабря 1895 года");
-        }
-    }
+    private int duration;
 }

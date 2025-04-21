@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
@@ -10,28 +11,27 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/films")
+@Valid
 public class FilmController {
     private final Map<Integer, Film> films = new HashMap<>();
     private final Logger log = LoggerFactory.getLogger(FilmController.class);
+    protected int idCounter = 0;
 
     @PostMapping
-    public Film add(@RequestBody Film film) {
+    public Film add(@Valid @RequestBody Film film) {
         log.info("Получен запрос на добавление фильма");
-        film.validation();
-        film.setId(getNextId());
+        film.setId(++idCounter);
         films.put(film.getId(), film);
         log.info("Добавлен фильм: {}", film);
         return film;
     }
 
     @PutMapping
-    public Film update(@RequestBody Film newFilm) {
-        log.info("Получен запрос на обновление фильма");
-        if (!films.containsKey(newFilm.getId())){
-            log.error("Фильм с ID {} не найден", newFilm.getId());
-            throw new ValidationException("Фильма с указанным ID не существует");
+    public Film update(@Valid @RequestBody Film newFilm) {
+        if (!films.containsKey(newFilm.getId())) {
+            log.error("Фильм с id {} не найден", newFilm.getId());
+            throw new ValidationException("Фильм с указанным id не существует");
         }
-        newFilm.validation();
         films.put(newFilm.getId(), newFilm);
         log.info("Фильм обновлен на новый: {}", newFilm);
         return newFilm;
@@ -42,13 +42,5 @@ public class FilmController {
         log.info("Получен запрос на получение всех фильмов");
         log.info("Список всех фильмов получен");
         return new ArrayList<>(films.values());
-    }
-
-    private int getNextId() {
-        int currentId = films.keySet().stream()
-                .mapToInt(id -> id)
-                .max()
-                .orElse(0);
-        return ++currentId;
     }
 }
