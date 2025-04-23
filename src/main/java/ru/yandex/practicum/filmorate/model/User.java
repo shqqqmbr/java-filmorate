@@ -1,8 +1,10 @@
 package ru.yandex.practicum.filmorate.model;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
-import ru.yandex.practicum.filmorate.annotation.MaximumDate;
 
 import java.time.LocalDate;
 
@@ -16,10 +18,14 @@ public class User {
     @Pattern(regexp = "\\S+", message = "Логин не может быть пустым и содержать пробелы")
     private String login;
     private String name;
-    @MaximumDate(message = "Дата рождения не может быть в будущем")
+    @PastOrPresent(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
 
     public String getName() {
         return name == null || name.isBlank() ? login : name;
+    }
+
+    public void setName(String name) {
+        this.name = (name == null || name.isBlank()) ? this.login : name;
     }
 }

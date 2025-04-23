@@ -7,7 +7,10 @@ import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/films")
@@ -15,7 +18,7 @@ import java.util.*;
 public class FilmController {
     private final Map<Integer, Film> films = new HashMap<>();
     private final Logger log = LoggerFactory.getLogger(FilmController.class);
-    protected int idCounter = 0;
+    private int idCounter = 0;
 
     @PostMapping
     public Film add(@Valid @RequestBody Film film) {
@@ -40,7 +43,8 @@ public class FilmController {
     @GetMapping
     public List<Film> getAll() {
         log.info("Получен запрос на получение всех фильмов");
+        List<Film> allFilms = new ArrayList<>(films.values());
         log.info("Список всех фильмов получен");
-        return new ArrayList<>(films.values());
+        return allFilms;
     }
 }

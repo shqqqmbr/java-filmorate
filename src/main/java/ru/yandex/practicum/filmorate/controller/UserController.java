@@ -7,7 +7,10 @@ import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/users")
@@ -15,7 +18,7 @@ import java.util.*;
 public class UserController {
     private final Map<Integer, User> users = new HashMap<>();
     private final Logger log = LoggerFactory.getLogger(UserController.class);
-    public int idCounter = 0;
+    private int idCounter = 0;
 
     @PostMapping
     public User add(@Valid @RequestBody User user) {
@@ -33,9 +36,6 @@ public class UserController {
             log.error("Пользователь с ID {} не найден", newUser.getId());
             throw new ValidationException("Пользователя с указанным ID не существует");
         }
-        if (newUser.getName() == null || newUser.getName().isBlank()) {
-            newUser.setName(newUser.getLogin());
-        }
         users.put(newUser.getId(), newUser);
         log.info("Пользователь обновлен на нового: {}", newUser);
         return newUser;
@@ -44,7 +44,8 @@ public class UserController {
     @GetMapping
     public List<User> getAll() {
         log.info("Получен запрос на получение всех пользователей");
+        List<User> allUsers = new ArrayList<>(users.values());
         log.info("Список всех пользователей получен");
-        return new ArrayList<>(users.values());
+        return allUsers;
     }
 }
