@@ -3,14 +3,12 @@ package ru.yandex.practicum.filmorate.controller;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/films")
@@ -46,5 +44,32 @@ public class FilmController {
         List<Film> allFilms = new ArrayList<>(films.values());
         log.info("Список всех фильмов получен");
         return allFilms;
+    }
+
+    @PutMapping("/{id}/like/{userId}")
+    public ResponseEntity<Void> putLike(@PathVariable int id, @PathVariable int userId) {
+        if (!films.containsKey(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        films.get(id).getLikes().add(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}/like/{userId}")
+    public ResponseEntity<Void> deleteLike(@PathVariable int id, @PathVariable int userId) {
+        if (!films.containsKey(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        films.get(id).getLikes().remove(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/popular?count={count}")
+    public List<Film> getPopularFilms(@RequestParam(required = false, defaultValue = "10") int count) {
+        return films.values().stream()
+                .filter(film -> film.getLikes() != null)
+                .sorted(Comparator.comparingInt(film -> -film.getLikes().size()))
+                .limit(count)
+                .toList();
     }
 }
