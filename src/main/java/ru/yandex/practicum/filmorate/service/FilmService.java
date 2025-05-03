@@ -47,7 +47,7 @@ public class FilmService {
         if (film.getLikes().contains(userId)) {
             throw new ValidationException("Пользователь " + userId + " уже лайкнул фильм " + id);
         }
-        if (userStorage.getUserById(userId)==null){
+        if (userStorage.getUserById(userId) == null) {
             throw new NotFoundException("Пользователь с данным ID найден");
         }
         film.getLikes().add(userId);
@@ -56,7 +56,7 @@ public class FilmService {
 
     public void deleteLike(int id, int userId) {
         Film film = storage.getFilmById(id);
-        if (userStorage.getUserById(userId)==null){
+        if (userStorage.getUserById(userId) == null) {
             throw new NotFoundException("Пользователь с данным ID не найден");
         }
         film.getLikes().remove(userId);

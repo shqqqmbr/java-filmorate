@@ -42,7 +42,7 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public void deleteFilm(int id) {
-        if (!films.containsKey(id)){
+        if (!films.containsKey(id)) {
             throw new NotFoundException("Фильм с данным ID не найден");
         }
         films.remove(id);
@@ -50,7 +50,7 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public Film getFilmById(int id) {
-        if (!films.containsKey(id)){
+        if (!films.containsKey(id)) {
             throw new NotFoundException("Фильм с данным ID не найден");
         }
         return films.get(id);
