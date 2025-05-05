@@ -1,7 +1,6 @@
 package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
@@ -10,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -75,11 +75,8 @@ public class UserService {
 
         userFriends.retainAll(otherFriends);
 
-        List<User> commonFriends = new ArrayList<>();
-        for (Integer friendId : userFriends) {
-            storage.getUserById(friendId);
-            commonFriends.add(storage.getUserById(friendId));
-        }
-        return commonFriends;
+        return userFriends.stream()
+                .map(storage::getUserById)
+                .collect(Collectors.toList());
     }
 }
