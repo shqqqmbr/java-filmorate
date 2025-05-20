@@ -22,6 +22,7 @@ public class User {
     private String name;
     @PastOrPresent(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
+    private boolean friend_status;
     private Set<Integer> friends = new HashSet<>();
 
     public String getName() {
