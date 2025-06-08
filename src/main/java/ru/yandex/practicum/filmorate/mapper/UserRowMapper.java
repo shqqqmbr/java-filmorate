@@ -5,6 +5,7 @@ import ru.yandex.practicum.filmorate.model.User;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
 
 public class UserRowMapper implements RowMapper<User> {
     @Override
@@ -15,7 +16,8 @@ public class UserRowMapper implements RowMapper<User> {
         user.setLogin(resultSet.getString("login"));
         user.setName(resultSet.getString("name"));
         user.setBirthday(resultSet.getDate("birthday").toLocalDate());
-        user.setFriend_status(resultSet.getBoolean("friend_status"));
+        user.setFriendStatus(resultSet.getBoolean("friend_status"));
+        user.setFriends(new HashSet<>());
         return user;
     }
 }

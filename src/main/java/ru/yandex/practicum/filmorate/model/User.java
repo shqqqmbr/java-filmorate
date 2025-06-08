@@ -1,5 +1,7 @@
 package ru.yandex.practicum.filmorate.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
@@ -11,6 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Data
+@Entity
+@Table(name = "users")
 public class User {
     private int id;
     @NotBlank
@@ -22,7 +26,7 @@ public class User {
     private String name;
     @PastOrPresent(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
-    private boolean friend_status;
+    private boolean friendStatus;
     private Set<Integer> friends = new HashSet<>();
 
     public String getName() {
