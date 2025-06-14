@@ -1,5 +1,7 @@
 package ru.yandex.practicum.filmorate.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -12,7 +14,9 @@ import java.util.Set;
 
 
 @Data
+@Entity
 public class Film {
+    @Id
     private int id;
     @NotBlank(message = "Название не может быть пустым")
     private String name;
