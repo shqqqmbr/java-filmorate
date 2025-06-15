@@ -1,7 +1,6 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -16,7 +15,6 @@ import java.sql.Statement;
 import java.util.List;
 
 @Repository
-@Qualifier("filmDbStorage")
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
 
@@ -27,7 +25,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film addFilm(Film film) {
-        String sql = "INSERT INTO FILMS (name, description, releaseDate, duration, mpa) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO FILMS (name, description, release_date, duration, mpa) VALUES (?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
@@ -35,10 +33,14 @@ public class FilmDbStorage implements FilmStorage {
             ps.setString(2, film.getDescription());
             ps.setDate(3, Date.valueOf(film.getReleaseDate()));
             ps.setInt(4, film.getDuration());
-            ps.setString(5, film.getMpa());
+            ps.setInt(5, film.getMpa().getMpaId());
             return ps;
         }, keyHolder);
-        film.setId(keyHolder.getKey().intValue());
+        if (keyHolder.getKey() != null) {
+            film.setId(keyHolder.getKey().intValue());
+        } else {
+            throw new RuntimeException("Не удалось получить сгенерированный ID");
+        }
         return film;
     }
 
@@ -49,17 +51,17 @@ public class FilmDbStorage implements FilmStorage {
         if (counter == 0) {
             throw new NotFoundException("Фильм с id=" + newFilm.getId() + " не найден");
         }
-        String sql = "UPDATE FILMS SET name = ?, description = ?, releaseDate = ?, duration = ?, mpa = ? WHERE id = ?";
+        String sql = "UPDATE FILMS SET name = ?, description = ?, release_date = ?, duration = ?, mpa = ? WHERE id = ?";
         jdbcTemplate.update(
                 sql,
                 newFilm.getName(),
                 newFilm.getDescription(),
-                newFilm.getReleaseDate(),
+                Date.valueOf(newFilm.getReleaseDate()),
                 newFilm.getDuration(),
-                newFilm.getMpa(),
+                newFilm.getMpa().getMpaId(),
                 newFilm.getId()
         );
-        return getFilmById(newFilm.getId());
+        return newFilm;
     }
 
     @Override

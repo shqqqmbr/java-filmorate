@@ -1,4 +1,3 @@
--- Инициализация рейтингов MPA
 MERGE INTO mpa (MPA_ID, MPA_NAME)
     VALUES (1, 'G'),
            (2, 'PG'),
@@ -6,7 +5,6 @@ MERGE INTO mpa (MPA_ID, MPA_NAME)
            (4, 'R'),
            (5, 'NC-17');
 
--- Инициализация жанров
 MERGE INTO genres (GENRE_ID, GENRE_NAME)
     VALUES (1, 'Комедия'),
            (2, 'Драма'),

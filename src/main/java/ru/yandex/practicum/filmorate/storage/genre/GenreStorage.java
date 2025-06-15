@@ -9,5 +9,4 @@ public interface GenreStorage {
 
     List<Genre> getAllGenres();
 
-    void deleteAllGenres();
 }

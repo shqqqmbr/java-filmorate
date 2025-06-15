@@ -19,8 +19,4 @@ public class MpaService {
     public List<Mpa> getAllMpas() {
         return storage.getAllMpas();
     }
-
-    public void deleteAllMpas() {
-        storage.deleteAllMpas();
-    }
 }

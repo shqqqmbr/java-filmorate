@@ -1,7 +1,7 @@
 package ru.yandex.practicum.filmorate.storage.user;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -14,9 +14,9 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Set;
 
 @Repository
-@Qualifier("userDbStorage")
 public class UserDbStorage implements UserStorage {
     private final JdbcTemplate jdbcTemplate;
 
@@ -37,27 +37,32 @@ public class UserDbStorage implements UserStorage {
             ps.setDate(4, Date.valueOf(user.getBirthday()));
             return ps;
         }, keyHolder);
-        user.setId(keyHolder.getKey().intValue());
+        if (keyHolder.getKey() != null) {
+            user.setId(keyHolder.getKey().intValue());
+        } else {
+            throw new RuntimeException("Не удалось получить сгенерированный ID");
+        }
         return user;
     }
 
     @Override
     public User updateUser(User newUser) {
-        String checkSql = "SELECT * FROM USERS WHERE id = ?";
+        String checkSql = "SELECT COUNT(*) FROM USERS WHERE id = ?";
         int counter = jdbcTemplate.queryForObject(checkSql, Integer.class, newUser.getId());
         if (counter == 0) {
             throw new NotFoundException("Пользователь с id=" + newUser.getId() + " не найден");
         }
+
         String sql = "UPDATE USERS SET email=?, login=?, name=?, birthday=? WHERE id=?";
         jdbcTemplate.update(
                 sql,
                 newUser.getEmail(),
                 newUser.getLogin(),
                 newUser.getName(),
-                newUser.getBirthday(),
+                Date.valueOf(newUser.getBirthday()),
                 newUser.getId()
         );
-        return getUserById(newUser.getId());
+        return newUser;
     }
 
     @Override
@@ -81,11 +86,35 @@ public class UserDbStorage implements UserStorage {
     @Override
     public User getUserById(int id) {
         String sql = "SELECT * FROM USERS WHERE id = ?";
-        int counter = jdbcTemplate.queryForObject(sql, Integer.class, id);
-        if (counter == 0) {
-            throw new NotFoundException("Пользователь с id=" + id + " не найден");
-        } else {
+        try {
             return jdbcTemplate.queryForObject(sql, new UserRowMapper(), id);
+        } catch (EmptyResultDataAccessException e) {
+            throw new NotFoundException("Пользователь с id=" + id + " не найден");
         }
+    }
+
+    @Override
+    public void addFriend(int userId, int frienId){
+
+    }
+
+    @Override
+    public void deleteFriend(int friendId){
+
+    }
+
+    @Override
+    public User getFriendByIf(int friendId){
+
+    }
+
+    @Override
+    public List<User> getAllFriends(int userId){
+
+    }
+
+    @Override
+    public boolean isFriend(int friendId){
+
     }
 }

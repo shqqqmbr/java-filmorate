@@ -19,8 +19,4 @@ public class GenreService {
     public List<Genre> getAllGenres() {
         return storage.getAllGenres();
     }
-
-    public void deleteAllGenres() {
-        storage.deleteAllGenres();
-    }
 }

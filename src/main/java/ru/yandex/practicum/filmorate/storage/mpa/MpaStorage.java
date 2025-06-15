@@ -9,5 +9,4 @@ public interface MpaStorage {
 
     List<Mpa> getAllMpas();
 
-    void deleteAllMpas();
 }

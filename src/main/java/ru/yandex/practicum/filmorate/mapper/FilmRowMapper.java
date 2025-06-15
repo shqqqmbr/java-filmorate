@@ -2,9 +2,11 @@ package ru.yandex.practicum.filmorate.mapper;
 
 import org.springframework.jdbc.core.RowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Mpa;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
 
 public class FilmRowMapper implements RowMapper<Film> {
     @Override
@@ -15,8 +17,13 @@ public class FilmRowMapper implements RowMapper<Film> {
         film.setDescription(resultSet.getString("description"));
         film.setReleaseDate(resultSet.getDate("release_date").toLocalDate());
         film.setDuration(resultSet.getInt("duration"));
-        film.setGenre(resultSet.getString("genre"));
-        film.setMpa(resultSet.getString("mpa"));
+        film.setGenres(new HashSet<>());
+        film.setLikes(new HashSet<>());
+
+        Mpa mpa = new Mpa();
+        mpa.setMpaId(resultSet.getInt("mpa_id"));
+        mpa.setMpaName(resultSet.getString("mpa_name"));
+        film.setMpa(mpa);
         return film;
     }
 }
