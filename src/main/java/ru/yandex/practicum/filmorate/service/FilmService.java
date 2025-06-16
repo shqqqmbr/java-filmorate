@@ -37,7 +37,7 @@ public class FilmService {
         return storage.getFilmById(id);
     }
 
-    public void putLike(int id, int userId) {
+    public void addLike(int id, int userId) {
         Film film = storage.getFilmById(id);
         if (film.getLikes().contains(userId)) {
             throw new ValidationException("Пользователь " + userId + " уже лайкнул фильм " + id);

@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.yandex.practicum.filmorate.model.Mpa;
@@ -18,7 +19,7 @@ public class MpaController {
     private final MpaService service;
 
     @GetMapping("/{id}")
-    public Mpa getMpaById(int id) {
+    public Mpa getMpaById(@PathVariable("id") Integer id) {
         return service.getMpaById(id);
     }
 

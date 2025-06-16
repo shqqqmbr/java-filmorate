@@ -5,6 +5,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
@@ -14,7 +15,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Set;
 
 @Repository
 public class UserDbStorage implements UserStorage {
@@ -68,8 +68,25 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<User> getAllUsers() {
         String sql = "SELECT * FROM USERS";
-        List<User> users = jdbcTemplate.query(sql, (rs, rowNum) -> new User());
+        List<User> users = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            User user = new User();
+            user.setId(rs.getInt("id"));
+            user.setEmail(rs.getString("email"));
+            user.setLogin(rs.getString("login"));
+            user.setName(rs.getString("name"));
+            user.setBirthday(rs.getDate("birthday").toLocalDate());
+            return user;
+        });
         return users;
+    }
+
+    @Override
+    public List<User> getCommonFriends(int userOneId, int userTwoId) {
+        String sql = "SELECT * FROM USERS u"
+                + "JOIN friends f1 ON u.id = f1.friend_id AND f1.user_id = ?"
+                + "JOIN friends f2 ON u.id = f2.friend_id AND f2.user_id = ?";
+        List<User> commonFriends = jdbcTemplate.query(sql, new Object[]{userOneId, userTwoId}, new UserRowMapper());
+        return commonFriends;
     }
 
     @Override
@@ -94,27 +111,34 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    public void addFriend(int userId, int frienId){
-
+    public void addFriend(int userId, int frienId) {
+        String checkSql = "SELECT COUNT(*) FROM friends WHERE"
+                + "(user_id =  ? AND friend_id = ?)";
+        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, userId, frienId, frienId, userId);
+        if (count > 0) {
+            throw new IllegalStateException("Дружба между пользователями уже существует");
+        }
+        String sql = "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)";
+        jdbcTemplate.update(sql, userId, frienId, true);
     }
 
     @Override
-    public void deleteFriend(int friendId){
-
+    public void deleteFriend(int userId, int friendId) {
+        String sql = "DELETE FROM friends WHERE user_id = ? AND friend_id = ?";
+        jdbcTemplate.update(sql, userId, friendId);
     }
 
     @Override
-    public User getFriendByIf(int friendId){
-
+    public List<User> getAllFriends(int userId) {
+        String sql = "SELECT * FROM friends WHERE user_id = ?";
+        List<User> friends = jdbcTemplate.query(sql, new UserRowMapper(), userId);
+        return friends;
     }
 
     @Override
-    public List<User> getAllFriends(int userId){
-
-    }
-
-    @Override
-    public boolean isFriend(int friendId){
-
+    public boolean isFriend(int userId, int friendId) {
+        String sql = "SELECT * FROM friends WHERE user_id = ? AND friend_id = ?";
+        SqlRowSet rowSet = jdbcTemplate.queryForRowSet(sql, userId, friendId);
+        return rowSet.next();
     }
 }
