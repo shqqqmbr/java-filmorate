@@ -4,7 +4,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import org.springframework.data.relational.core.mapping.Column;
 import ru.yandex.practicum.filmorate.annotation.MinimumDate;
 
 import java.time.LocalDate;
@@ -25,12 +24,4 @@ public class Film {
     private Set<Integer> likes = new HashSet<>();
     private Set<Genre> genres = new HashSet<>();
     private Mpa mpa;
-
-    public void addLike(int id){
-        likes.add(id);
-    }
-
-    public void deleteLike(int id){
-        likes.remove(id);
-    }
 }
