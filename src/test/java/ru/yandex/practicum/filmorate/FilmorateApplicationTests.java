@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
@@ -24,6 +27,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 @AutoConfigureTestDatabase
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 @Import({UserDbStorage.class, FilmDbStorage.class, MpaDbStorage.class})
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class FilmorateApplicationTests {
     private final UserDbStorage userStorage;
     private final FilmDbStorage filmStorage;
@@ -221,6 +225,8 @@ class FilmorateApplicationTests {
 
     @Test
     public void deleteFilmTest() {
+        Film film = filmStorage.getFilmById(1);
+        assertThat(film).isNotNull();
         filmStorage.deleteFilm(1);
         List<Film> films = filmStorage.getAllFilms();
         Assertions.assertTrue(films.isEmpty());
@@ -228,6 +234,10 @@ class FilmorateApplicationTests {
 
     @Test
     public void addLikeTest() {
+        Film film = filmStorage.getFilmById(1);
+        User user  = userStorage.getUserById(1);
+        assertThat(film).isNotNull();
+        assertThat(user).isNotNull();
         filmStorage.addLike(1, 1);
         Set<Integer> likes = filmStorage.getFilmById(1).getLikes();
         Assertions.assertTrue(likes.contains(1));
@@ -270,13 +280,13 @@ class FilmorateApplicationTests {
         user2.setLogin("Login2");
         user2.setBirthday(LocalDate.now().minusDays(18));
         user2.setEmail("user2@mail.ru");
-        userStorage.addUser(user1);
+        userStorage.addUser(user2);
         User user3 = new User();
         user3.setName("user3");
         user3.setLogin("Login3");
         user3.setBirthday(LocalDate.now().minusDays(18));
         user3.setEmail("user3@mail.ru");
-        userStorage.addUser(user1);
+        userStorage.addUser(user3);
 
         filmStorage.addLike(1, 1);
         filmStorage.addLike(1, 2);
