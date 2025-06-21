@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -21,10 +22,12 @@ import java.util.stream.Collectors;
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
+    private final MpaDbStorage mpaDbStorage;
 
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
     }
 
     @Override
@@ -72,12 +75,7 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film updateFilm(Film newFilm) {
         checkFilmPresence(newFilm.getId());
-        int mpaId = newFilm.getMpa().getId();
-        boolean mpaExists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM MPA WHERE mpa_id = ?",
-                Integer.class, mpaId) > 0;
-        if (!mpaExists) {
-            throw new NotFoundException("MPA с id=" + mpaId + " не найден");
-        }
+        mpaDbStorage.getMpaById(newFilm.getMpa().getId());
         String sql = "UPDATE FILMS SET name = ?, description = ?, release_date = ?, duration = ?, mpa = ? WHERE id = ?";
         jdbcTemplate.update(
                 sql,
@@ -85,7 +83,7 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getDescription(),
                 Date.valueOf(newFilm.getReleaseDate()),
                 newFilm.getDuration(),
-                mpaId,
+                newFilm.getMpa().getId(),
                 newFilm.getId()
         );
         addGenre(newFilm.getId(), newFilm.getGenres());
@@ -148,16 +146,19 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getPopularFilms(int count) {
         String sql = """
-                SELECT films.*, mpa.*,
-                (SELECT COUNT(*) FROM likes WHERE likes.film_id = films.id) AS likes_count
+                SELECT films.*, mpa.*, COUNT(likes.film_id) AS likes_count
                 FROM films
                 JOIN mpa ON films.mpa = mpa.mpa_id
+                LEFT JOIN likes ON films.id = likes.film_id
+                GROUP BY films.id, mpa.mpa_id
                 ORDER BY likes_count DESC
                 LIMIT ?
                 """;
         return jdbcTemplate.query(sql, new FilmRowMapper(), count);
     }
 
+//    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
+//            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
             return;
@@ -166,13 +167,14 @@ public class FilmDbStorage implements FilmStorage {
         Set<Integer> genreIds = genres.stream()
                 .map(Genre::getId)
                 .collect(Collectors.toSet());
-        String checkGenresSql = "SELECT genre_id FROM genres WHERE genre_id IN (" +
-                genreIds.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")";
-        List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkGenresSql, Integer.class);
+        String placeholder = genres.stream().map(id -> "?").collect(Collectors.joining(","));
+        String checkSql = String.format("Select genre_id FROM genres WHERE genre_id IN (%s)", placeholder);
+        List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkSql, genreIds.toArray(), Integer.class);
 
         if (existingGenreIds.size() != genreIds.size()) {
-            Set<Integer> missingIds = new HashSet<>(genreIds);
-            missingIds.removeAll(existingGenreIds);
+            Set<Integer> missingIds = genreIds.stream()
+                    .filter(id -> !existingGenreIds.contains(id))
+                    .collect(Collectors.toSet());
             throw new NotFoundException("Жанры с id=" + missingIds + " не найдены в справочнике");
         }
 
