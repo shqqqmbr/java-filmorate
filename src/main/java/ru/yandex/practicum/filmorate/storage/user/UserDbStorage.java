@@ -46,7 +46,7 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public User updateUser(User newUser) {
-        cheсkUserPresence(newUser.getId());
+        checkUserPresence(newUser.getId());
         String sql = "UPDATE USERS SET email=?, login=?, name=?, birthday=? WHERE id=?";
         jdbcTemplate.update(
                 sql,
@@ -62,14 +62,13 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<User> getAllUsers() {
         String sql = "SELECT * FROM USERS";
-        List<User> users = jdbcTemplate.query(sql, new UserRowMapper());
-        return users;
+        return jdbcTemplate.query(sql, new UserRowMapper());
     }
 
     @Override
     public List<User> getCommonFriends(int userOneId, int userTwoId) {
-        cheсkUserPresence(userOneId);
-        cheсkUserPresence(userTwoId);
+        checkUserPresence(userOneId);
+        checkUserPresence(userTwoId);
         String sql = """
                 SELECT * FROM USERS u
                 JOIN friends f1 ON u.id = f1.friend_id AND f1.user_id = ?
@@ -81,37 +80,37 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public void deleteUser(int id) {
-        cheсkUserPresence(id);
+        checkUserPresence(id);
         String sql = "DELETE FROM USERS WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
 
     @Override
     public User getUserById(int userId) {
-        cheсkUserPresence(userId);
+        checkUserPresence(userId);
         String sql = "SELECT * FROM USERS WHERE id = ?";
         return jdbcTemplate.queryForObject(sql, new UserRowMapper(), userId);
     }
 
     @Override
     public void addFriend(int userId, int frienId) {
-        cheсkUserPresence(userId);
-        cheсkUserPresence(frienId);
+        checkUserPresence(userId);
+        checkUserPresence(frienId);
         String sql = "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)";
         jdbcTemplate.update(sql, userId, frienId, true);
     }
 
     @Override
     public void deleteFriend(int userId, int friendId) {
-        cheсkUserPresence(userId);
-        cheсkUserPresence(friendId);
+        checkUserPresence(userId);
+        checkUserPresence(friendId);
         String sql = "DELETE FROM friends WHERE user_id = ? AND friend_id = ?";
         jdbcTemplate.update(sql, userId, friendId);
     }
 
     @Override
     public List<User> getAllFriends(int userId) {
-        cheсkUserPresence(userId);
+        checkUserPresence(userId);
         String sql = "SELECT * FROM users JOIN friends ON users.id = friends.friend_id WHERE friends.user_id = ?";
         return jdbcTemplate.query(sql, new UserRowMapper(), userId);
     }
@@ -123,7 +122,7 @@ public class UserDbStorage implements UserStorage {
         return rowSet.next();
     }
 
-    private void cheсkUserPresence(int userId) {
+    private void checkUserPresence(int userId) {
         String checkSql = "SELECT COUNT(*) FROM USERS WHERE id = ?";
         int count = jdbcTemplate.queryForObject(checkSql, Integer.class, userId);
         if (count == 0) {
