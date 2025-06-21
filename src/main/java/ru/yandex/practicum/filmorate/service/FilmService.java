@@ -2,20 +2,15 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class FilmService {
     private final FilmStorage storage;
-    private final UserStorage userStorage;
 
     public Film addFilm(Film film) {
         return storage.addFilm(film);
@@ -37,31 +32,15 @@ public class FilmService {
         return storage.getFilmById(id);
     }
 
-    public void putLike(int id, int userId) {
-        Film film = storage.getFilmById(id);
-        if (film.getLikes().contains(userId)) {
-            throw new ValidationException("Пользователь " + userId + " уже лайкнул фильм " + id);
-        }
-        if (userStorage.getUserById(userId) == null) {
-            throw new NotFoundException("Пользователь с данным ID найден");
-        }
-        film.getLikes().add(userId);
-        storage.updateFilm(film);
+    public void addLike(int id, int userId) {
+        storage.addLike(id, userId);
     }
 
     public void deleteLike(int id, int userId) {
-        Film film = storage.getFilmById(id);
-        if (userStorage.getUserById(userId) == null) {
-            throw new NotFoundException("Пользователь с данным ID не найден");
-        }
-        film.getLikes().remove(userId);
-        storage.updateFilm(film);
+        storage.deleteLike(id, userId);
     }
 
     public List<Film> getPopularFilms(int count) {
-        return storage.getAllFilms().stream()
-                .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
-                .limit(count)
-                .toList();
+        return storage.getPopularFilms(count);
     }
 }

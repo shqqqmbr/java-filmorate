@@ -10,7 +10,6 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
-
 @Data
 public class Film {
     private int id;
@@ -23,6 +22,6 @@ public class Film {
     @Positive(message = "Продолжительность должна быть больше 0")
     private int duration;
     private Set<Integer> likes = new HashSet<>();
-    private String genre;
-    private String rating;
+    private Set<Genre> genres = new HashSet<>();
+    private Mpa mpa;
 }
