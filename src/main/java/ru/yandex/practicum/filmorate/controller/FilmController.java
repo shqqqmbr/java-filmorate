@@ -2,8 +2,6 @@ package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
@@ -15,7 +13,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Valid
 public class FilmController {
-    private final Logger log = LoggerFactory.getLogger(FilmController.class);
     private final FilmService service;
 
     @PostMapping
@@ -34,8 +31,8 @@ public class FilmController {
     }
 
     @PutMapping("/{id}/like/{userId}")
-    public void putLike(@PathVariable("id") int id, @PathVariable("userId") int userId) {
-        service.putLike(id, userId);
+    public void addLike(@PathVariable("id") int id, @PathVariable("userId") int userId) {
+        service.addLike(id, userId);
     }
 
     @DeleteMapping("/{id}/like/{userId}")
@@ -46,5 +43,15 @@ public class FilmController {
     @GetMapping("/popular")
     public List<Film> getPopularFilms(@RequestParam(required = false, defaultValue = "10") int count) {
         return service.getPopularFilms(count);
+    }
+
+    @GetMapping("/{id}")
+    public Film getFilmById(@PathVariable("id") int id) {
+        return service.getFilmById(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteFilmById(@PathVariable("id") int id) {
+        service.deleteFilm(id);
     }
 }
