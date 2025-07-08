@@ -7,9 +7,12 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
+import ru.yandex.practicum.filmorate.mapper.IntegerRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -23,11 +26,13 @@ import java.util.stream.Collectors;
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
+    private final UserStorage userStorage;
 
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
+        this.userStorage = new UserDbStorage(jdbcTemplate);
     }
 
     @Override
@@ -157,7 +162,7 @@ public class FilmDbStorage implements FilmStorage {
         return jdbcTemplate.query(sql, new FilmRowMapper(), count);
     }
 
-//    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
+    //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
 //            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
@@ -191,5 +196,30 @@ public class FilmDbStorage implements FilmStorage {
         if (counter == 0) {
             throw new NotFoundException("Фильм с id=" + filmId + " не найден");
         }
+    }
+
+    @Override
+    public List<Film> getCommonFilms(int userId, int friendId) {
+        String sqlRequest = """
+                SELECT l1.film_id
+                FROM likes l1
+                WHERE l1.user_id = ?
+                INTERSECT
+                SELECT l2.film_id
+                FROM likes l2
+                WHERE l2.user_id = ?
+                """;
+
+        // для проверки, существует ли пользователь
+        userStorage.getUserById(userId);
+        userStorage.getUserById(friendId);
+
+        // не стал использовать один запрос с выводом фильмов, т.к. после применения FilmRowMapper
+        // нужно будет заполнять пустые коллекции т.е. дублировать код getFilmById,
+        // решил использовать сортировку на уровне приложения
+        return jdbcTemplate.query(sqlRequest, new IntegerRowMapper(), userId, friendId).stream()
+                .map(this::getFilmById)
+                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size()) //т.к. порядок сортировки после map не сохраняется, использовать сортировку в запросе бесполезно
+                .collect(Collectors.toList());
     }
 }
