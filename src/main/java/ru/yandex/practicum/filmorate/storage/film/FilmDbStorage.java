@@ -210,11 +210,9 @@ public class FilmDbStorage implements FilmStorage {
                 WHERE l2.user_id = ?
                 """;
 
-        userStorage.getUserById(userId); // для проверки, существует ли пользователь
-
-        if (!userStorage.isFriend(userId, friendId)) {
-            throw new NotFoundException("У пользователя с id = " + userId + " нет друга с id =" + friendId);
-        }
+        // для проверки, существует ли пользователь
+        userStorage.getUserById(userId);
+        userStorage.getUserById(friendId);
 
         // не стал использовать один запрос с выводом фильмов, т.к. после применения FilmRowMapper
         // нужно будет заполнять пустые коллекции т.е. дублировать код getFilmById,
