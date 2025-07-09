@@ -9,7 +9,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.mapper.FilmRowMapperAllFields;
+import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
@@ -105,7 +105,7 @@ public class FilmDbStorage implements FilmStorage {
                 + "f.mpa AS mpa_id, m.mpa_name "
                 + "FROM FILMS f "
                 + "LEFT JOIN mpa m ON f.mpa = m.mpa_id";
-        return jdbcTemplate.query(sql, new FilmRowMapperAllFields(namedParameterJdbcTemplate));
+        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     @Override
@@ -122,7 +122,7 @@ public class FilmDbStorage implements FilmStorage {
                 + "FROM FILMS f "
                 + "JOIN mpa m ON f.mpa = m.mpa_id "
                 + "WHERE f.id = ? ";
-        return jdbcTemplate.queryForObject(filmSql, new FilmRowMapperAllFields(namedParameterJdbcTemplate), filmId);
+        return jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(namedParameterJdbcTemplate), filmId);
     }
 
     @Override
@@ -158,7 +158,7 @@ public class FilmDbStorage implements FilmStorage {
                 .addValue("year", year)
                 .addValue("limit", count);
 
-        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapperAllFields(namedParameterJdbcTemplate));
+        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
@@ -225,6 +225,6 @@ public class FilmDbStorage implements FilmStorage {
                 .addValue("userId", userId)
                 .addValue("friendId", friendId);
 
-        return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapperAllFields(namedParameterJdbcTemplate));
+        return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 }
