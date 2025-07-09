@@ -1,8 +1,11 @@
 package ru.yandex.practicum.filmorate.storage.user;
 
+import ru.yandex.practicum.filmorate.model.Feed;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.util.List;
+import ru.yandex.practicum.filmorate.model.enums.EventTypes;
+import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 
 public interface UserStorage {
     User addUser(User user);
@@ -24,4 +27,8 @@ public interface UserStorage {
     List<User> getCommonFriends(int userOneId, int userTwoId);
 
     boolean isFriend(int userId, int friendId);
+
+    List<Feed> getUserFeed(int id);
+
+    void addUserFeed(int entityId, int userId, EventTypes eventType, OperationTypes operation);
 }

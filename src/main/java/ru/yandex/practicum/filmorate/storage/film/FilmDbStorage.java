@@ -9,6 +9,8 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.enums.EventTypes;
+import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 
 import java.sql.Date;
@@ -18,16 +20,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
+    private final UserDbStorage userDbStorage;
 
     @Autowired
-    public FilmDbStorage(JdbcTemplate jdbcTemplate) {
+    public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userDbStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
+        this.userDbStorage = userDbStorage;
     }
 
     @Override
@@ -69,6 +74,7 @@ public class FilmDbStorage implements FilmStorage {
             throw new RuntimeException("Не удалось получить сгенерированный ID");
         }
         addGenre(film.getId(), genreSet);
+
         return film;
     }
 
@@ -135,12 +141,14 @@ public class FilmDbStorage implements FilmStorage {
     public void addLike(int filmId, int userId) {
         String sql = "INSERT INTO likes (film_id, user_id) VALUES (?, ?)";
         jdbcTemplate.update(sql, filmId, userId);
+        userDbStorage.addUserFeed(filmId, userId, EventTypes.LIKE, OperationTypes.ADD);
     }
 
     @Override
     public void deleteLike(int filmId, int userId) {
         String sql = "DELETE FROM likes WHERE film_id = ? AND user_id = ?";
         jdbcTemplate.update(sql, filmId, userId);
+        userDbStorage.addUserFeed(filmId, userId, EventTypes.LIKE, OperationTypes.REMOVE);
     }
 
     @Override

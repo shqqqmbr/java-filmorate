@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.model.Feed;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
@@ -47,5 +48,9 @@ public class UserService {
 
     public List<User> getCommonFriends(int id, int otherId) {
         return storage.getCommonFriends(id, otherId);
+    }
+
+    public List<Feed> getUserFeed(int id) {
+        return storage.getUserFeed(id);
     }
 }
