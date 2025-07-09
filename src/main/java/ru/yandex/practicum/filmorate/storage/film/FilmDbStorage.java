@@ -28,14 +28,14 @@ import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
-    private final UserDbStorage userStorage;
+    private final UserDbStorage userDbStorage;
 
 
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
-        this.userDbStorage = userStorage;
+        this.userDbStorage = userDbStorage;
     }
 
     @Override
@@ -217,8 +217,8 @@ public class FilmDbStorage implements FilmStorage {
                 """;
 
         // для проверки, существует ли пользователь
-        userStorage.getUserById(userId);
-        userStorage.getUserById(friendId);
+        userDbStorage.getUserById(userId);
+        userDbStorage.getUserById(friendId);
 
         // не стал использовать один запрос с выводом фильмов, т.к. после применения FilmRowMapper
         // нужно будет заполнять пустые коллекции т.е. дублировать код getFilmById,
