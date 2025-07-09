@@ -14,7 +14,6 @@ import ru.yandex.practicum.filmorate.model.enums.EventTypes;
 import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
