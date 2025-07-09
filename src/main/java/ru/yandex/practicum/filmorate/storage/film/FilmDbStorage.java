@@ -28,14 +28,14 @@ import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
-    private final UserDbStorage userDbStorage;
+    private final UserDbStorage userStorage;
 
 
     @Autowired
-    public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userDbStorage) {
+    public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
-        this.userDbStorage = userDbStorage;
+        this.userDbStorage = userStorage;
     }
 
     @Override
