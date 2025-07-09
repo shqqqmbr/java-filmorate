@@ -35,7 +35,7 @@ public class FilmDbStorage implements FilmStorage {
     public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
-        this.userDbStorage = userDbStorage;
+        this.userDbStorage = userStorage;
     }
 
     @Override
