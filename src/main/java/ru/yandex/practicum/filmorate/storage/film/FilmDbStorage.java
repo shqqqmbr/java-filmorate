@@ -10,6 +10,8 @@ import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.mapper.IntegerRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.enums.EventTypes;
+import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
@@ -140,12 +142,14 @@ public class FilmDbStorage implements FilmStorage {
     public void addLike(int filmId, int userId) {
         String sql = "INSERT INTO likes (film_id, user_id) VALUES (?, ?)";
         jdbcTemplate.update(sql, filmId, userId);
+        userStorage.addUserFeed(filmId, userId, EventTypes.LIKE, OperationTypes.ADD);
     }
 
     @Override
     public void deleteLike(int filmId, int userId) {
         String sql = "DELETE FROM likes WHERE film_id = ? AND user_id = ?";
         jdbcTemplate.update(sql, filmId, userId);
+        userStorage.addUserFeed(filmId, userId, EventTypes.LIKE, OperationTypes.REMOVE);
     }
 
     @Override
@@ -162,7 +166,7 @@ public class FilmDbStorage implements FilmStorage {
         return jdbcTemplate.query(sql, new FilmRowMapper(), count);
     }
 
-    //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
+//    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
 //            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
