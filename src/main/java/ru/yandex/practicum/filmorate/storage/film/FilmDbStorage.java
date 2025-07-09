@@ -2,12 +2,16 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.mapper.IntegerRowMapper;
+import ru.yandex.practicum.filmorate.mapper.FilmRowMapperAllFields;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
@@ -25,12 +29,14 @@ import java.util.stream.Collectors;
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
     private final UserStorage userStorage;
 
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
         this.userStorage = new UserDbStorage(jdbcTemplate);
     }
@@ -149,17 +155,27 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public List<Film> getPopularFilms(int count) {
+    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
         String sql = """
                 SELECT films.*, mpa.*, COUNT(likes.film_id) AS likes_count
                 FROM films
                 JOIN mpa ON films.mpa = mpa.mpa_id
                 LEFT JOIN likes ON films.id = likes.film_id
+                LEFT JOIN film_genres ON films.ID = film_genres.film_id
+                LEFT JOIN genres ON film_genres.genre_id = genres.genre_id
+                WHERE (:genreId IS NULL OR genres.genre_id = :genreId)
+                AND (:year IS NULL OR YEAR(films.release_date) = :year)
                 GROUP BY films.id, mpa.mpa_id
                 ORDER BY likes_count DESC
-                LIMIT ?
+                LIMIT :limit
                 """;
-        return jdbcTemplate.query(sql, new FilmRowMapper(), count);
+
+        SqlParameterSource params = new MapSqlParameterSource()
+                .addValue("genreId", genreId)
+                .addValue("year", year)
+                .addValue("limit", count);
+
+        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapperAllFields(namedParameterJdbcTemplate));
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
