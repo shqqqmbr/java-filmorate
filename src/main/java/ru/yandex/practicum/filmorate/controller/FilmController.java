@@ -14,6 +14,7 @@ import java.util.List;
 @Valid
 public class FilmController {
     private final FilmService service;
+    private final FilmService filmService;
 
     @PostMapping
     public Film add(@Valid @RequestBody Film film) {
@@ -53,5 +54,10 @@ public class FilmController {
     @DeleteMapping("/{id}")
     public void deleteFilmById(@PathVariable("id") int id) {
         service.deleteFilm(id);
+    }
+
+    @GetMapping("/common")
+    public List<Film> getCommonFilms(@RequestParam("userId") int userId, @RequestParam("friendId") int friendId) {
+        return filmService.getCommonFilms(userId, friendId);
     }
 }
