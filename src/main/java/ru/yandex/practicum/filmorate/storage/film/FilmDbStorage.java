@@ -8,8 +8,10 @@ import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.mapper.IntegerRowMapper;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.storage.director.DirectorDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
@@ -27,12 +29,14 @@ public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
     private final UserStorage userStorage;
+    private final DirectorDbStorage directorDbStorage;
 
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
         this.userStorage = new UserDbStorage(jdbcTemplate);
+        this.directorDbStorage = new DirectorDbStorage(jdbcTemplate);
     }
 
     @Override
@@ -92,6 +96,7 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getId()
         );
         addGenre(newFilm.getId(), newFilm.getGenres());
+        addDirectors(newFilm.getId(), newFilm.getDirectors());
         newFilm.setGenres(newFilm.getGenres());
         return newFilm;
     }
@@ -133,6 +138,15 @@ public class FilmDbStorage implements FilmStorage {
         String likesSql = "SELECT user_id FROM likes WHERE film_id = ?";
         Set<Integer> likes = new HashSet<>(jdbcTemplate.queryForList(likesSql, Integer.class, filmId));
         film.setLikes(likes);
+        String directorsSql = "SELECT * FROM directors WHERE director_id IN (SELECT director_id "
+                + "FROM film_directors "
+                + "WHERE film_id = ?)";
+        Set<Director> directors = new HashSet<>(jdbcTemplate.query(directorsSql,
+                (rs, rowNum) -> new Director(rs.getInt("director_id"),
+                        rs.getString("name")),
+                filmId
+        ));
+        film.setDirectors(directors);
         return film;
     }
 
@@ -160,6 +174,38 @@ public class FilmDbStorage implements FilmStorage {
                 LIMIT ?
                 """;
         return jdbcTemplate.query(sql, new FilmRowMapper(), count);
+    }
+
+    @Override
+    public List<Film> getSortedFilms(int directorId, String sortBy) {
+        String sqlLikes = """
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                LEFT JOIN likes AS l ON f.id = l.film_id
+                WHERE fd.director_id = ?
+                GROUP BY f.id
+                ORDER BY COUNT(l.user_id) DESC
+                """;
+        String sqlYear = """
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                WHERE fd.director_id = ?
+                ORDER BY f.release_date
+                """;
+        List<Film> directorFilms;
+        if (sortBy.equalsIgnoreCase("likes")) {
+            directorFilms = jdbcTemplate.query(sqlLikes, new FilmRowMapper(), directorId);
+        } else if (sortBy.equalsIgnoreCase("year")) {
+            directorFilms = jdbcTemplate.query(sqlYear, new FilmRowMapper(), directorId);
+        } else {
+            throw new RuntimeException("Некорректный запрос");
+        }
+        setFilmDirectors(directorFilms);
+        return directorFilms;
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
@@ -221,5 +267,23 @@ public class FilmDbStorage implements FilmStorage {
                 .map(this::getFilmById)
                 .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size()) //т.к. порядок сортировки после map не сохраняется, использовать сортировку в запросе бесполезно
                 .collect(Collectors.toList());
+    }
+
+    private void addDirectors(int filmId, Set<Director> directors) {
+        if (directors == null || directors.isEmpty()) {
+            return;
+        }
+        directors.forEach(director -> {
+            if (director.hasId()) {
+                String sql = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
+                jdbcTemplate.update(sql, filmId, director.getId());
+            }
+        });
+    }
+
+    private void setFilmDirectors(List<Film> films) {
+        films.forEach(film -> {
+            film.setDirectors(directorDbStorage.getFilmDirectors(film.getId()));
+        });
     }
 }
