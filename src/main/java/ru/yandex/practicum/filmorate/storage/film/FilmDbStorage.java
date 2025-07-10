@@ -2,14 +2,17 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
-import ru.yandex.practicum.filmorate.mapper.IntegerRowMapper;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.storage.director.DirectorDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
@@ -17,7 +20,6 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -25,14 +27,18 @@ import java.util.stream.Collectors;
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
     private final UserStorage userStorage;
+    private final DirectorDbStorage directorDbStorage;
 
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
         this.userStorage = new UserDbStorage(jdbcTemplate);
+        this.directorDbStorage = new DirectorDbStorage(jdbcTemplate);
     }
 
     @Override
@@ -49,12 +55,12 @@ public class FilmDbStorage implements FilmStorage {
         Set<Genre> genreSet = film.getGenres();
         List<Integer> filmsGenreId = genreSet.stream()
                 .map(Genre::getId)
-                .toList();
-        String checkGenresSql = "SELECT genre_id FROM genres";
-        List<Integer> genresIdsFromGenres = jdbcTemplate.queryForList(checkGenresSql, Integer.class);
+                .collect(Collectors.toList());
+        String checGenresSql = "SELECT genre_id FROM genres";
+        List<Integer> genresIdsFromGenres = jdbcTemplate.queryForList(checGenresSql, Integer.class);
         List<Integer> missingIds = filmsGenreId.stream()
                 .filter(id -> !genresIdsFromGenres.contains(id))
-                .toList();
+                .collect(Collectors.toList());
         if (!missingIds.isEmpty()) {
             throw new NotFoundException("ID жанров не найдены в базе: " + missingIds);
         }
@@ -92,6 +98,7 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getId()
         );
         addGenre(newFilm.getId(), newFilm.getGenres());
+        addDirectors(newFilm.getId(), newFilm.getDirectors());
         newFilm.setGenres(newFilm.getGenres());
         return newFilm;
     }
@@ -102,7 +109,7 @@ public class FilmDbStorage implements FilmStorage {
                 + "f.mpa AS mpa_id, m.mpa_name "
                 + "FROM FILMS f "
                 + "LEFT JOIN mpa m ON f.mpa = m.mpa_id";
-        return jdbcTemplate.query(sql, new FilmRowMapper());
+        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     @Override
@@ -119,25 +126,7 @@ public class FilmDbStorage implements FilmStorage {
                 + "FROM FILMS f "
                 + "JOIN mpa m ON f.mpa = m.mpa_id "
                 + "WHERE f.id = ? ";
-        Film film = jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(), filmId);
-        String genresSql = "SELECT g.genre_id, g.genre_name "
-                + "FROM film_genres fg "
-                + "JOIN genres g ON fg.genre_id = g.genre_id "
-                + "WHERE fg.film_id = ? ORDER BY g.genre_id ASC";
-        Set<Genre> genres = new HashSet<>(jdbcTemplate.query(genresSql,
-                (rs, rowNum) -> new Genre(rs.getInt("genre_id"),
-                        rs.getString("genre_name")),
-                filmId
-        ));
-        if (film != null) {
-            film.setGenres(genres);
-        }
-        String likesSql = "SELECT user_id FROM likes WHERE film_id = ?";
-        Set<Integer> likes = new HashSet<>(jdbcTemplate.queryForList(likesSql, Integer.class, filmId));
-        if (film != null) {
-            film.setLikes(likes);
-        }
-        return film;
+        return jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(namedParameterJdbcTemplate), filmId);
     }
 
     @Override
@@ -153,21 +142,63 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public List<Film> getPopularFilms(int count) {
+    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
         String sql = """
                 SELECT films.*, mpa.*, COUNT(likes.film_id) AS likes_count
                 FROM films
                 JOIN mpa ON films.mpa = mpa.mpa_id
                 LEFT JOIN likes ON films.id = likes.film_id
+                LEFT JOIN film_genres ON films.id = film_genres.film_id
+                LEFT JOIN genres ON film_genres.genre_id = genres.genre_id
+                WHERE (:genreId IS NULL OR genres.genre_id = :genreId)
+                AND (:year IS NULL OR YEAR(films.release_date) = :year)
                 GROUP BY films.id, mpa.mpa_id
                 ORDER BY likes_count DESC
-                LIMIT ?
+                LIMIT :count
                 """;
-        return jdbcTemplate.query(sql, new FilmRowMapper(), count);
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("genreId", genreId)
+                .addValue("year", year)
+                .addValue("count", count);
+
+        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapper(namedParameterJdbcTemplate));
+    }
+
+    @Override
+    public List<Film> getSortedFilms(int directorId, String sortBy) {
+        String sqlLikes = """
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                LEFT JOIN likes AS l ON f.id = l.film_id
+                WHERE fd.director_id = ?
+                GROUP BY f.id
+                ORDER BY COUNT(l.user_id) DESC
+                """;
+        String sqlYear = """
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                WHERE fd.director_id = ?
+                ORDER BY f.release_date
+                """;
+        List<Film> directorFilms;
+        if (sortBy.equalsIgnoreCase("likes")) {
+            directorFilms = jdbcTemplate.query(sqlLikes, new FilmRowMapper(namedParameterJdbcTemplate), directorId);
+        } else if (sortBy.equalsIgnoreCase("year")) {
+            directorFilms = jdbcTemplate.query(sqlYear, new FilmRowMapper(namedParameterJdbcTemplate), directorId);
+        } else {
+            throw new RuntimeException("Некорректный запрос");
+        }
+        setFilmDirectors(directorFilms);
+        return directorFilms;
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
-    //    (+ ... +) путем добавления placeholder.
+//            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
             return;
@@ -204,59 +235,50 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getCommonFilms(int userId, int friendId) {
-        String sqlRequest = """
-                SELECT l1.film_id
-                FROM likes l1
-                WHERE l1.user_id = ?
-                INTERSECT
-                SELECT l2.film_id
-                FROM likes l2
-                WHERE l2.user_id = ?
-                """;
-
         // для проверки, существует ли пользователь
         userStorage.getUserById(userId);
         userStorage.getUserById(friendId);
 
-        // Не стал использовать один запрос с выводом фильмов, так как после применения FilmRowMapper
-        // нужно будет заполнять пустые коллекции - дублировать код getFilmById,
-        // решил использовать сортировку на уровне приложения
-        return jdbcTemplate.query(sqlRequest, new IntegerRowMapper(), userId, friendId).stream()
-                .map(this::getFilmById)
-                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size()) //Так как порядок сортировки после map не сохраняется, использовать сортировку в запросе бесполезно
-                .collect(Collectors.toList());
+        String sqlRequest = """
+                SELECT f.*, m.*, COUNT(l.film_id) AS likes_count
+                FROM films f
+                JOIN mpa m ON f.mpa = m.mpa_id
+                JOIN likes l ON f.id = l.film_id
+                WHERE f.id IN (
+                    SELECT l1.film_id
+                    FROM likes l1
+                    WHERE l1.user_id = :userId
+                    INTERSECT
+                    SELECT l2.film_id
+                    FROM likes l2
+                    WHERE l2.user_id = :friendId
+                )
+                GROUP BY f.id, m.mpa_id
+                ORDER BY likes_count DESC
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("friendId", friendId);
+
+        return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
-    @Override
-    public List<Film> getUserRecommendations(int userId) {
-        userStorage.getUserById(userId);
+    private void addDirectors(int filmId, Set<Director> directors) {
+        if (directors == null || directors.isEmpty()) {
+            return;
+        }
+        directors.forEach(director -> {
+            if (director.hasId()) {
+                String sql = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
+                jdbcTemplate.update(sql, filmId, director.getId());
+            }
+        });
+    }
 
-        String sql = """
-                WITH params AS (
-                  SELECT u.ID
-                    FROM USERS u
-                   WHERE u.ID  = ?),
-                user_films AS (
-                  SELECT l.FILM_ID
-                    FROM params p
-                   INNER JOIN LIKES l ON p.ID = l.USER_ID),
-                friends_films AS (
-                  SELECT l.FILM_ID
-                    FROM params p
-                   INNER JOIN FRIENDS f ON p.ID = f.USER_ID
-                   INNER JOIN LIKES l ON f.FRIEND_ID = l.USER_ID),
-                film_ids AS (
-                SELECT *
-                  FROM friends_films ff
-                EXCEPT
-                SELECT *
-                  FROM user_films uf)
-                SELECT f.*
-                  FROM film_ids fi
-                 INNER JOIN FILMS f ON fi.FILM_ID = f.ID
-                """;
-        return jdbcTemplate.query(sql, new FilmRowMapper(), userId).stream()
-                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size())
-                .collect(Collectors.toList());
+    private void setFilmDirectors(List<Film> films) {
+        films.forEach(film -> {
+            film.setDirectors(directorDbStorage.getFilmDirectors(film.getId()));
+        });
     }
 }

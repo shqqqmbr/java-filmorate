@@ -40,11 +40,15 @@ public class FilmService {
         storage.deleteLike(id, userId);
     }
 
-    public List<Film> getPopularFilms(int count) {
-        return storage.getPopularFilms(count);
+    public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
+        return storage.getPopularFilms(count, genreId, year);
     }
 
     public List<Film> getCommonFilms(int userId, int friendId) {
         return storage.getCommonFilms(userId, friendId);
+    }
+
+    public List<Film> getSortedFilms(int directorId, String sortBy) {
+        return storage.getSortedFilms(directorId, sortBy);
     }
 }
