@@ -47,4 +47,8 @@ public class FilmService {
     public List<Film> getCommonFilms(int userId, int friendId) {
         return storage.getCommonFilms(userId, friendId);
     }
+
+    public List<Film> getSortedFilms(int directorId, String sortBy) {
+        return storage.getSortedFilms(directorId, sortBy);
+    }
 }
