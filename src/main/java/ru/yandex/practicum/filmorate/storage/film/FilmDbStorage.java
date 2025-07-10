@@ -49,12 +49,12 @@ public class FilmDbStorage implements FilmStorage {
         Set<Genre> genreSet = film.getGenres();
         List<Integer> filmsGenreId = genreSet.stream()
                 .map(Genre::getId)
-                .collect(Collectors.toList());
-        String checGenresSql = "SELECT genre_id FROM genres";
-        List<Integer> genresIdsFromGenres = jdbcTemplate.queryForList(checGenresSql, Integer.class);
+                .toList();
+        String checkGenresSql = "SELECT genre_id FROM genres";
+        List<Integer> genresIdsFromGenres = jdbcTemplate.queryForList(checkGenresSql, Integer.class);
         List<Integer> missingIds = filmsGenreId.stream()
                 .filter(id -> !genresIdsFromGenres.contains(id))
-                .collect(Collectors.toList());
+                .toList();
         if (!missingIds.isEmpty()) {
             throw new NotFoundException("ID жанров не найдены в базе: " + missingIds);
         }
@@ -129,10 +129,14 @@ public class FilmDbStorage implements FilmStorage {
                         rs.getString("genre_name")),
                 filmId
         ));
-        film.setGenres(genres);
+        if (film != null) {
+            film.setGenres(genres);
+        }
         String likesSql = "SELECT user_id FROM likes WHERE film_id = ?";
         Set<Integer> likes = new HashSet<>(jdbcTemplate.queryForList(likesSql, Integer.class, filmId));
-        film.setLikes(likes);
+        if (film != null) {
+            film.setLikes(likes);
+        }
         return film;
     }
 
@@ -163,7 +167,7 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
-//            (+ ... +) путем добавления плейсхолдера.
+    //    (+ ... +) путем добавления placeholder.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
             return;
@@ -214,12 +218,45 @@ public class FilmDbStorage implements FilmStorage {
         userStorage.getUserById(userId);
         userStorage.getUserById(friendId);
 
-        // не стал использовать один запрос с выводом фильмов, т.к. после применения FilmRowMapper
-        // нужно будет заполнять пустые коллекции т.е. дублировать код getFilmById,
+        // Не стал использовать один запрос с выводом фильмов, так как после применения FilmRowMapper
+        // нужно будет заполнять пустые коллекции - дублировать код getFilmById,
         // решил использовать сортировку на уровне приложения
         return jdbcTemplate.query(sqlRequest, new IntegerRowMapper(), userId, friendId).stream()
                 .map(this::getFilmById)
-                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size()) //т.к. порядок сортировки после map не сохраняется, использовать сортировку в запросе бесполезно
+                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size()) //Так как порядок сортировки после map не сохраняется, использовать сортировку в запросе бесполезно
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Film> getUserRecommendations(int userId) {
+        userStorage.getUserById(userId);
+
+        String sql = """
+                WITH params AS (
+                  SELECT u.ID
+                    FROM USERS u
+                   WHERE u.ID  = ?),
+                user_films AS (
+                  SELECT l.FILM_ID
+                    FROM params p
+                   INNER JOIN LIKES l ON p.ID = l.USER_ID),
+                friends_films AS (
+                  SELECT l.FILM_ID
+                    FROM params p
+                   INNER JOIN FRIENDS f ON p.ID = f.USER_ID
+                   INNER JOIN LIKES l ON f.FRIEND_ID = l.USER_ID),
+                film_ids AS (
+                SELECT *
+                  FROM friends_films ff
+                EXCEPT
+                SELECT *
+                  FROM user_films uf)
+                SELECT f.*
+                  FROM film_ids fi
+                 INNER JOIN FILMS f ON fi.FILM_ID = f.ID
+                """;
+        return jdbcTemplate.query(sql, new FilmRowMapper(), userId).stream()
+                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size())
                 .collect(Collectors.toList());
     }
 }
