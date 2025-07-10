@@ -1,5 +1,11 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -17,15 +23,9 @@ import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 @Repository
 public class FilmDbStorage implements FilmStorage {
+
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
@@ -221,7 +221,7 @@ public class FilmDbStorage implements FilmStorage {
         jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
         String insertSql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
         jdbcTemplate.batchUpdate(insertSql, genres.stream()
-                .map(genre -> new Object[]{filmId, genre.getId()})
+                .map(genre -> new Object[] {filmId, genre.getId()})
                 .collect(Collectors.toList()));
     }
 
@@ -262,6 +262,26 @@ public class FilmDbStorage implements FilmStorage {
                 .addValue("friendId", friendId);
 
         return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapper(namedParameterJdbcTemplate));
+    }
+
+    @Override
+    public List<Film> getUserRecommendations(int userId) {
+        userStorage.getUserById(userId);
+
+        String sql = """
+                SELECT f.*
+                  FROM FRIENDS fr
+                 INNER JOIN LIKES l ON fr.FRIEND_ID = l.USER_ID
+                 INNER JOIN FILMS f ON l.FILM_ID = f.ID
+                 WHERE fr.USER_ID = ?
+                EXCEPT
+                SELECT f.*
+                  FROM LIKES l
+                 INNER JOIN FILMS f ON l.FILM_ID = f.ID
+                 WHERE l.USER_ID = ?
+                """;
+
+        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate), userId, userId);
     }
 
     private void addDirectors(int filmId, Set<Director> directors) {
