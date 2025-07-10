@@ -138,7 +138,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
-        String baseSql = """
+        String sql = """
                 SELECT films.*, mpa.*, COUNT(likes.film_id) AS likes_count
                 FROM films
                 JOIN mpa ON films.mpa = mpa.mpa_id
@@ -149,20 +149,15 @@ public class FilmDbStorage implements FilmStorage {
                 AND (:year IS NULL OR YEAR(films.release_date) = :year)
                 GROUP BY films.id, mpa.mpa_id
                 ORDER BY likes_count DESC
+                LIMIT :count
                 """;
 
-        String finalSql = baseSql;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("genreId", genreId)
-                .addValue("year", year);
+                .addValue("year", year)
+                .addValue("count", count);
 
-        // Добавляем LIMIT только если он указан
-        if (count != null && count > 0) {
-            finalSql = baseSql + " LIMIT :count";
-            params.addValue("count", count);
-        }
-
-        return namedParameterJdbcTemplate.query(finalSql, params, new FilmRowMapper(namedParameterJdbcTemplate));
+        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
