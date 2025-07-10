@@ -269,19 +269,17 @@ public class FilmDbStorage implements FilmStorage {
         userStorage.getUserById(userId);
 
         String sql = """
-                SELECT f.*
-                  FROM FRIENDS fr
-                 INNER JOIN LIKES l ON fr.FRIEND_ID = l.USER_ID
-                 INNER JOIN FILMS f ON l.FILM_ID = f.ID
-                 WHERE fr.USER_ID = ?
-                EXCEPT
-                SELECT f.*
-                  FROM LIKES l
-                 INNER JOIN FILMS f ON l.FILM_ID = f.ID
-                 WHERE l.USER_ID = ?
+                SELECT f.*, m.*
+                  FROM LIKES l1
+                 INNER JOIN LIKES l2 ON l1.FILM_ID = l2.FILM_ID AND l2.USER_ID != l1.USER_ID
+                 INNER JOIN LIKES l3 ON l2.USER_ID = l3.USER_ID AND l1.FILM_ID != l3.FILM_ID
+                 INNER JOIN FILMS f ON l3.FILM_ID = f.ID
+                 INNER JOIN MPA m ON f.MPA = m.MPA_ID
+                 WHERE l1.USER_ID = ?
+                ORDER BY f.ID
                 """;
 
-        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate), userId, userId);
+        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate), userId);
     }
 
     private void addDirectors(int filmId, Set<Director> directors) {
