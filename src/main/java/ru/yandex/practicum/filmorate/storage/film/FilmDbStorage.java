@@ -10,8 +10,6 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
-import ru.yandex.practicum.filmorate.mapper.IntegerRowMapper;
-import ru.yandex.practicum.filmorate.mapper.FilmRowMapperAllFields;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
@@ -21,7 +19,6 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -108,7 +105,7 @@ public class FilmDbStorage implements FilmStorage {
                 + "f.mpa AS mpa_id, m.mpa_name "
                 + "FROM FILMS f "
                 + "LEFT JOIN mpa m ON f.mpa = m.mpa_id";
-        return jdbcTemplate.query(sql, new FilmRowMapper());
+        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     @Override
@@ -125,21 +122,7 @@ public class FilmDbStorage implements FilmStorage {
                 + "FROM FILMS f "
                 + "JOIN mpa m ON f.mpa = m.mpa_id "
                 + "WHERE f.id = ? ";
-        Film film = jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(), filmId);
-        String genresSql = "SELECT g.genre_id, g.genre_name "
-                + "FROM film_genres fg "
-                + "JOIN genres g ON fg.genre_id = g.genre_id "
-                + "WHERE fg.film_id = ? ORDER BY g.genre_id ASC";
-        Set<Genre> genres = new HashSet<>(jdbcTemplate.query(genresSql,
-                (rs, rowNum) -> new Genre(rs.getInt("genre_id"),
-                        rs.getString("genre_name")),
-                filmId
-        ));
-        film.setGenres(genres);
-        String likesSql = "SELECT user_id FROM likes WHERE film_id = ?";
-        Set<Integer> likes = new HashSet<>(jdbcTemplate.queryForList(likesSql, Integer.class, filmId));
-        film.setLikes(likes);
-        return film;
+        return jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(namedParameterJdbcTemplate), filmId);
     }
 
     @Override
@@ -175,7 +158,7 @@ public class FilmDbStorage implements FilmStorage {
                 .addValue("year", year)
                 .addValue("limit", count);
 
-        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapperAllFields(namedParameterJdbcTemplate));
+        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
@@ -216,26 +199,32 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getCommonFilms(int userId, int friendId) {
-        String sqlRequest = """
-                SELECT l1.film_id
-                FROM likes l1
-                WHERE l1.user_id = ?
-                INTERSECT
-                SELECT l2.film_id
-                FROM likes l2
-                WHERE l2.user_id = ?
-                """;
-
         // для проверки, существует ли пользователь
         userStorage.getUserById(userId);
         userStorage.getUserById(friendId);
 
-        // не стал использовать один запрос с выводом фильмов, т.к. после применения FilmRowMapper
-        // нужно будет заполнять пустые коллекции т.е. дублировать код getFilmById,
-        // решил использовать сортировку на уровне приложения
-        return jdbcTemplate.query(sqlRequest, new IntegerRowMapper(), userId, friendId).stream()
-                .map(this::getFilmById)
-                .sorted((f1, f2) -> f2.getLikes().size() - f1.getLikes().size()) //т.к. порядок сортировки после map не сохраняется, использовать сортировку в запросе бесполезно
-                .collect(Collectors.toList());
+        String sqlRequest = """
+                SELECT f.*, m.*, COUNT(l.film_id) AS likes_count
+                FROM films f
+                JOIN mpa m ON f.mpa = m.mpa_id
+                JOIN likes l ON f.id = l.film_id
+                WHERE f.id IN (
+                    SELECT l1.film_id
+                    FROM likes l1
+                    WHERE l1.user_id = :userId
+                    INTERSECT
+                    SELECT l2.film_id
+                    FROM likes l2
+                    WHERE l2.user_id = :friendId
+                )
+                GROUP BY f.id, m.mpa_id
+                ORDER BY likes_count DESC
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("friendId", friendId);
+
+        return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 }
