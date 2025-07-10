@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
@@ -139,26 +138,31 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getPopularFilms(Integer count, Integer genreId, Integer year) {
-        String sql = """
+        String baseSql = """
                 SELECT films.*, mpa.*, COUNT(likes.film_id) AS likes_count
                 FROM films
                 JOIN mpa ON films.mpa = mpa.mpa_id
                 LEFT JOIN likes ON films.id = likes.film_id
-                LEFT JOIN film_genres ON films.ID = film_genres.film_id
+                LEFT JOIN film_genres ON films.id = film_genres.film_id
                 LEFT JOIN genres ON film_genres.genre_id = genres.genre_id
                 WHERE (:genreId IS NULL OR genres.genre_id = :genreId)
                 AND (:year IS NULL OR YEAR(films.release_date) = :year)
                 GROUP BY films.id, mpa.mpa_id
                 ORDER BY likes_count DESC
-                LIMIT :limit
                 """;
 
-        SqlParameterSource params = new MapSqlParameterSource()
+        String finalSql = baseSql;
+        MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("genreId", genreId)
-                .addValue("year", year)
-                .addValue("limit", count);
+                .addValue("year", year);
 
-        return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapper(namedParameterJdbcTemplate));
+        // Добавляем LIMIT только если он указан
+        if (count != null && count > 0) {
+            finalSql = baseSql + " LIMIT :count";
+            params.addValue("count", count);
+        }
+
+        return namedParameterJdbcTemplate.query(finalSql, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
     //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
