@@ -20,6 +20,7 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -262,6 +263,11 @@ public class FilmDbStorage implements FilmStorage {
                 .addValue("friendId", friendId);
 
         return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapper(namedParameterJdbcTemplate));
+    }
+
+    @Override
+    public List<Film> getSearchResults(String query, String by) {
+        return new ArrayList<>();
     }
 
     private void addDirectors(int filmId, Set<Director> directors) {

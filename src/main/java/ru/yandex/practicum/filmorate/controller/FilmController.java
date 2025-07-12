@@ -15,7 +15,6 @@ import java.util.List;
 @Valid
 public class FilmController {
     private final FilmService service;
-    private final FilmService filmService;
 
     @PostMapping
     public Film add(@Valid @RequestBody Film film) {
@@ -59,7 +58,7 @@ public class FilmController {
 
     @GetMapping("/common")
     public List<Film> getCommonFilms(@RequestParam("userId") int userId, @RequestParam("friendId") int friendId) {
-        return filmService.getCommonFilms(userId, friendId);
+        return service.getCommonFilms(userId, friendId);
     }
 
     @GetMapping("/director/{directorId}")
@@ -68,5 +67,10 @@ public class FilmController {
             @RequestParam String sortBy
     ) {
         return service.getSortedFilms(directorId, sortBy);
+    }
+
+    @GetMapping("/search")
+    public List<Film> getSearchResults(@RequestParam String query, @RequestParam String by) {
+        return service.getSearchResults(query, by);
     }
 }
