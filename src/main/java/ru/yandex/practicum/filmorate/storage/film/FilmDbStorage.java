@@ -22,6 +22,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -81,6 +82,7 @@ public class FilmDbStorage implements FilmStorage {
             throw new RuntimeException("Не удалось получить сгенерированный ID");
         }
         addGenre(film.getId(), genreSet);
+        addDirectors(film.getId(), film.getDirectors());
         return film;
     }
 
@@ -110,7 +112,9 @@ public class FilmDbStorage implements FilmStorage {
                 + "f.mpa AS mpa_id, m.mpa_name "
                 + "FROM FILMS f "
                 + "LEFT JOIN mpa m ON f.mpa = m.mpa_id";
-        return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate));
+        List<Film> films = jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate));
+        setFilmDirectors(films);
+        return films;
     }
 
     @Override
@@ -127,7 +131,9 @@ public class FilmDbStorage implements FilmStorage {
                 + "FROM FILMS f "
                 + "JOIN mpa m ON f.mpa = m.mpa_id "
                 + "WHERE f.id = ? ";
-        return jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(namedParameterJdbcTemplate), filmId);
+        Film film = jdbcTemplate.queryForObject(filmSql, new FilmRowMapper(namedParameterJdbcTemplate), filmId);
+        setFilmDirectors(film);
+        return film;
     }
 
     @Override
@@ -267,7 +273,53 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getSearchResults(String query, String by) {
-        return new ArrayList<>();
+        String sqlDir = """
+                        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                        FROM films AS f
+                        JOIN mpa ON f.mpa = mpa.mpa_id
+                        LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                        LEFT JOIN directors AS d ON fd.director_id = d.director_id
+                        LEFT JOIN likes AS l ON f.id = l.film_id
+                        WHERE LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%'))
+                        GROUP BY f.id
+                        ORDER BY COUNT(l.user_id) DESC
+                        """;
+        String sqlTitle = """
+                        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                        FROM films AS f
+                        JOIN mpa ON f.mpa = mpa.mpa_id
+                        LEFT JOIN likes AS l ON f.id = l.film_id
+                        WHERE LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))
+                        GROUP BY f.id
+                        ORDER BY COUNT(l.user_id) DESC
+                        """;
+        String sqlDirTitle = """
+                        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                        FROM films AS f
+                        JOIN mpa ON f.mpa = mpa.mpa_id
+                        LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                        LEFT JOIN directors AS d ON fd.director_id = d.director_id
+                        LEFT JOIN likes AS l ON f.id = l.film_id
+                        WHERE d.name LIKE CONCAT('%',?,'%') OR f.name LIKE CONCAT('%',?,'%')
+                        GROUP BY f.id
+                        ORDER BY COUNT(l.user_id) DESC
+                        """;
+
+        List<Film> films = new ArrayList<>();
+        switch (by) {
+            case "director":
+                films = jdbcTemplate.query(sqlDir, new FilmRowMapper(namedParameterJdbcTemplate), query);
+                break;
+            case "title":
+                films = jdbcTemplate.query(sqlTitle, new FilmRowMapper(namedParameterJdbcTemplate), query);
+                break;
+            case "title,director":
+            case "director,title":
+                films = jdbcTemplate.query(sqlDirTitle, new FilmRowMapper(namedParameterJdbcTemplate), query, query);
+                break;
+        }
+        setFilmDirectors(films);
+        return films;
     }
 
     private void addDirectors(int filmId, Set<Director> directors) {
@@ -276,8 +328,17 @@ public class FilmDbStorage implements FilmStorage {
         }
         directors.forEach(director -> {
             if (director.hasId()) {
+                jdbcTemplate.update("DELETE FROM film_directors WHERE film_id = ? AND director_id = ?", filmId,
+                        director.getId());
                 String sql = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
                 jdbcTemplate.update(sql, filmId, director.getId());
+
+                if (director.hasName()) {
+                    jdbcTemplate.update("DELETE FROM directors WHERE director_id = ?", director.getId());
+                    sql = "INSERT INTO directors (director_id, name) VALUES (?, ?)";
+                    jdbcTemplate.update(sql, director.getId(), director.getName());
+                }
+
             }
         });
     }
@@ -286,5 +347,11 @@ public class FilmDbStorage implements FilmStorage {
         films.forEach(film -> {
             film.setDirectors(directorDbStorage.getFilmDirectors(film.getId()));
         });
+    }
+
+    private void setFilmDirectors(Film film) {
+        if (Objects.nonNull(film)) {
+            film.setDirectors(directorDbStorage.getFilmDirectors(film.getId()));
+        }
     }
 }
