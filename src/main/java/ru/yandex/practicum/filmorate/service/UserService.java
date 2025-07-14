@@ -56,7 +56,7 @@ public class UserService {
     public List<Feed> getUserFeed(int id) {
         return storage.getUserFeed(id);
     }
-    
+
     public List<Film> getUserRecommendations(int userId) {
         return filmStorage.getUserRecommendations(userId);
     }
