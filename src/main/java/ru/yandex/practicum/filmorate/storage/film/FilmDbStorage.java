@@ -1,11 +1,5 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -235,7 +229,7 @@ public class FilmDbStorage implements FilmStorage {
         jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
         String insertSql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
         jdbcTemplate.batchUpdate(insertSql, genres.stream()
-                .map(genre -> new Object[] {filmId, genre.getId()})
+                .map(genre -> new Object[]{filmId, genre.getId()})
                 .collect(Collectors.toList()));
     }
 
@@ -281,36 +275,36 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getSearchResults(String query, String by) {
         String sqlDir = """
-                        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-                        FROM films AS f
-                        JOIN mpa ON f.mpa = mpa.mpa_id
-                        LEFT JOIN film_directors AS fd ON f.id = fd.film_id
-                        LEFT JOIN directors AS d ON fd.director_id = d.director_id
-                        LEFT JOIN likes AS l ON f.id = l.film_id
-                        WHERE LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%'))
-                        GROUP BY f.id
-                        ORDER BY COUNT(l.user_id) DESC
-                        """;
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                LEFT JOIN directors AS d ON fd.director_id = d.director_id
+                LEFT JOIN likes AS l ON f.id = l.film_id
+                WHERE LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%'))
+                GROUP BY f.id
+                ORDER BY COUNT(l.user_id) DESC
+                """;
         String sqlTitle = """
-                        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-                        FROM films AS f
-                        JOIN mpa ON f.mpa = mpa.mpa_id
-                        LEFT JOIN likes AS l ON f.id = l.film_id
-                        WHERE LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))
-                        GROUP BY f.id
-                        ORDER BY COUNT(l.user_id) DESC
-                        """;
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN likes AS l ON f.id = l.film_id
+                WHERE LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))
+                GROUP BY f.id
+                ORDER BY COUNT(l.user_id) DESC
+                """;
         String sqlDirTitle = """
-                        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-                        FROM films AS f
-                        JOIN mpa ON f.mpa = mpa.mpa_id
-                        LEFT JOIN film_directors AS fd ON f.id = fd.film_id
-                        LEFT JOIN directors AS d ON fd.director_id = d.director_id
-                        LEFT JOIN likes AS l ON f.id = l.film_id
-                        WHERE d.name LIKE CONCAT('%',?,'%') OR f.name LIKE CONCAT('%',?,'%')
-                        GROUP BY f.id
-                        ORDER BY COUNT(l.user_id) DESC
-                        """;
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                LEFT JOIN directors AS d ON fd.director_id = d.director_id
+                LEFT JOIN likes AS l ON f.id = l.film_id
+                WHERE d.name LIKE CONCAT('%',?,'%') OR f.name LIKE CONCAT('%',?,'%')
+                GROUP BY f.id
+                ORDER BY COUNT(l.user_id) DESC
+                """;
 
         List<Film> films = new ArrayList<>();
         switch (by) {
@@ -327,6 +321,7 @@ public class FilmDbStorage implements FilmStorage {
         }
         setFilmDirectors(films);
         return films;
+    }
 
     public List<Film> getUserRecommendations(int userId) {
         userStorage.getUserById(userId);

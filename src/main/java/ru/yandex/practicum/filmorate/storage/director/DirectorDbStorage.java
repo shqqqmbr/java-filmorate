@@ -48,7 +48,8 @@ public class DirectorDbStorage implements DirectorStorage {
             PreparedStatement ps = connection
                     .prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
             ps.setObject(1, director.getName());
-            return ps; }, keyHolder);
+            return ps;
+        }, keyHolder);
 
         Integer id = keyHolder.getKeyAs(Integer.class);
 
