@@ -8,6 +8,7 @@ import ru.yandex.practicum.filmorate.model.enums.EventTypes;
 import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 
 public interface UserStorage {
+
     User addUser(User user);
 
     User updateUser(User newUser);
