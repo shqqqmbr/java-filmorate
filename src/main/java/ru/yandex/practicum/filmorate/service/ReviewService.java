@@ -36,15 +36,15 @@ public class ReviewService {
         return storage.getAllReviews(count);
     }
 
-    public void addLike(int ReviewId, int userId) {
+    public void addLike(int reviewId, int userId) {
         storage.addLike(ReviewId, userId);
     }
 
-    public void addDislike(int ReviewId, int userId) {
+    public void addDislike(int reviewId, int userId) {
         storage.addDislike(ReviewId, userId);
     }
 
-    public void deleteLike(int ReviewId, int userId) {
+    public void deleteLike(int reviewId, int userId) {
         storage.deleteLike(ReviewId, userId);
     }
 
