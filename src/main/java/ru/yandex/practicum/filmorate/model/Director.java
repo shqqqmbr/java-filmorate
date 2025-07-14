@@ -19,10 +19,10 @@ public class Director {
     private String name;
 
     public boolean hasId() {
-        return ! (id == null);
+        return !(id == null);
     }
 
     public boolean hasName() {
-        return ! (name == null || name.isBlank());
+        return !(name == null || name.isBlank());
     }
 }
