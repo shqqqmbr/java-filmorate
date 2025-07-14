@@ -37,18 +37,18 @@ public class ReviewService {
     }
 
     public void addLike(int reviewId, int userId) {
-        storage.addLike(ReviewId, userId);
+        storage.addLike(reviewId, userId);
     }
 
     public void addDislike(int reviewId, int userId) {
-        storage.addDislike(ReviewId, userId);
+        storage.addDislike(reviewId, userId);
     }
 
     public void deleteLike(int reviewId, int userId) {
-        storage.deleteLike(ReviewId, userId);
+        storage.deleteLike(reviewId, userId);
     }
 
     public void deleteDislike(int reviewId, int userId) {
-        storage.deleteDislike(ReviewId, userId);
+        storage.deleteDislike(reviewId, userId);
     }
 }
