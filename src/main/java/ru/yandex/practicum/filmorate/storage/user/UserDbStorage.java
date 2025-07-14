@@ -1,5 +1,11 @@
 package ru.yandex.practicum.filmorate.storage.user;
 
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -7,13 +13,12 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.mapper.FeedRowMapper;
 import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
+import ru.yandex.practicum.filmorate.model.Feed;
 import ru.yandex.practicum.filmorate.model.User;
-
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.util.List;
+import ru.yandex.practicum.filmorate.model.enums.EventTypes;
+import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 
 @Repository
 public class UserDbStorage implements UserStorage {
@@ -97,6 +102,7 @@ public class UserDbStorage implements UserStorage {
     public void addFriend(int userId, int frienId) {
         checkUserPresence(userId);
         checkUserPresence(frienId);
+        addUserFeed(frienId, userId, EventTypes.FRIEND, OperationTypes.ADD);
         String sql = "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)";
         jdbcTemplate.update(sql, userId, frienId, true);
     }
@@ -105,6 +111,7 @@ public class UserDbStorage implements UserStorage {
     public void deleteFriend(int userId, int friendId) {
         checkUserPresence(userId);
         checkUserPresence(friendId);
+        addUserFeed(friendId, userId, EventTypes.FRIEND, OperationTypes.REMOVE);
         String sql = "DELETE FROM friends WHERE user_id = ? AND friend_id = ?";
         jdbcTemplate.update(sql, userId, friendId);
     }
@@ -121,6 +128,36 @@ public class UserDbStorage implements UserStorage {
         String sql = "SELECT * FROM friends WHERE user_id = ? AND friend_id = ?";
         SqlRowSet rowSet = jdbcTemplate.queryForRowSet(sql, userId, friendId);
         return rowSet.next();
+    }
+
+    @Override
+    public List<Feed> getUserFeed(int userId) {
+        checkUserPresence(userId);
+        String sql = "SELECT * FROM feed WHERE user_Id = ?";
+        return jdbcTemplate.query(sql, new FeedRowMapper(), userId);
+    }
+
+    @Override
+    public void addUserFeed(int entityId, int userId, EventTypes eventType, OperationTypes operation) {
+        checkUserPresence(userId);
+        String sql = """
+                INSERT INTO feed (entity_id, user_id, event_type, operation_type, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+                """;
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(con -> {
+            PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setInt(1, entityId);
+            ps.setInt(2, userId);
+            ps.setString(3, eventType.toString());
+            ps.setString(4, operation.toString());
+            ps.setTimestamp(5, Timestamp.from(Instant.now()));
+            return ps;
+        }, keyHolder);
+
+        if (keyHolder.getKey() == null) {
+            throw new RuntimeException("Не удалось добавить событие");
+        }
     }
 
     private void checkUserPresence(int userId) {
