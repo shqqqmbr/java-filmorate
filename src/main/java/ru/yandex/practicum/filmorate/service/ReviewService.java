@@ -48,7 +48,7 @@ public class ReviewService {
         storage.deleteLike(ReviewId, userId);
     }
 
-    public void deleteDislike(int ReviewId, int userId) {
+    public void deleteDislike(int reviewId, int userId) {
         storage.deleteDislike(ReviewId, userId);
     }
 }
