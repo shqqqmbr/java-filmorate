@@ -17,12 +17,12 @@ public interface ReviewStorage {
 
     List<Review> getAllReviews(int count);
 
-    void addLike(int ReviewId, int userId);
+    void addLike(int reviewId, int userId);
 
-    void addDislike(int ReviewId, int userId);
+    void addDislike(int reviewId, int userId);
 
-    void deleteLike(int ReviewId, int userId);
+    void deleteLike(int reviewId, int userId);
 
-    void deleteDislike(int ReviewId, int userId);
+    void deleteDislike(int reviewId, int userId);
 
 }
