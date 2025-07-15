@@ -27,10 +27,10 @@ public class ReviewDbStorage implements ReviewStorage {
     private final FilmStorage filmStorage;
 
     @Autowired
-    public ReviewDbStorage(JdbcTemplate jdbcTemplate) {
+    public ReviewDbStorage(JdbcTemplate jdbcTemplate, UserStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.userStorage = new UserDbStorage(jdbcTemplate);
-        this.filmStorage = new FilmDbStorage(jdbcTemplate);
+        this.filmStorage = new FilmDbStorage(jdbcTemplate, (UserDbStorage) userStorage);
     }
 
     @Override
