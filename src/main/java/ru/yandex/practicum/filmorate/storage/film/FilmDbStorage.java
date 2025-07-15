@@ -248,8 +248,8 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getCommonFilms(int userId, int friendId) {
         // для проверки, существует ли пользователь
-        userStorage.getUserById(userId);
-        userStorage.getUserById(friendId);
+        userDbStorage.getUserById(userId);
+        userDbStorage.getUserById(friendId);
 
         String sqlRequest = """
                 SELECT f.*, m.*, COUNT(l.film_id) AS likes_count
@@ -331,7 +331,7 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     public List<Film> getUserRecommendations(int userId) {
-        userStorage.getUserById(userId);
+        userDbStorage.getUserById(userId);
 
         String sql = """
                 SELECT f.*, m.*
