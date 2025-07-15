@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -14,7 +15,6 @@ import java.util.List;
 @Valid
 public class FilmController {
     private final FilmService service;
-    private final FilmService filmService;
 
     @PostMapping
     public Film add(@Valid @RequestBody Film film) {
@@ -42,8 +42,8 @@ public class FilmController {
     }
 
     @GetMapping("/popular")
-    public List<Film> getPopularFilms(@RequestParam(required = false, defaultValue = "10") int count) {
-        return service.getPopularFilms(count);
+    public List<Film> getPopularFilms(@RequestParam(required = false, defaultValue = "10") Integer count, @RequestParam(required = false) Integer genreId, @RequestParam(required = false) Integer year) {
+        return service.getPopularFilms(count, genreId, year);
     }
 
     @GetMapping("/{id}")
@@ -58,6 +58,19 @@ public class FilmController {
 
     @GetMapping("/common")
     public List<Film> getCommonFilms(@RequestParam("userId") int userId, @RequestParam("friendId") int friendId) {
-        return filmService.getCommonFilms(userId, friendId);
+        return service.getCommonFilms(userId, friendId);
+    }
+
+    @GetMapping("/director/{directorId}")
+    public List<Film> getDirectorFilms(
+            @PathVariable("directorId") @Positive int directorId,
+            @RequestParam String sortBy
+    ) {
+        return service.getSortedFilms(directorId, sortBy);
+    }
+
+    @GetMapping("/search")
+    public List<Film> getSearchResults(@RequestParam String query, @RequestParam String by) {
+        return service.getSearchResults(query, by);
     }
 }

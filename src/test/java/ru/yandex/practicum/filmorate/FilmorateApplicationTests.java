@@ -297,8 +297,9 @@ class FilmorateApplicationTests {
 
         filmStorage.addLike(3, 1);
 
-        List<Film> films = filmStorage.getPopularFilms(2);
-        Assertions.assertTrue(films.contains(film1));
-        Assertions.assertTrue(films.contains(film2));
+        List<Film> films = filmStorage.getPopularFilms(2, null, null);
+        Assertions.assertTrue(films.size() == 2);
+        Assertions.assertTrue(films.contains(filmStorage.getFilmById(1)));
+        Assertions.assertTrue(films.contains(filmStorage.getFilmById(2)));
     }
 }
