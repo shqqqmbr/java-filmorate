@@ -142,9 +142,9 @@ public class ReviewDbStorage implements ReviewStorage {
         userStorage.getUserById(userId);
 
         String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
-        Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
+        int currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
 
-        if (currentUseful == null) {
+        if (currentUseful == 0) {
             String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, -1)";
             jdbcTemplate.update(insertSql, reviewId, userId);
         } else if (currentUseful == 1) {
