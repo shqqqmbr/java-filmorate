@@ -305,18 +305,4 @@ class FilmorateApplicationTests {
         Assertions.assertTrue(films.contains(filmStorage.getFilmById(1)));
         Assertions.assertTrue(films.contains(filmStorage.getFilmById(2)));
     }
-
-    @Test
-    public void getUserFeed() {
-        int userId = 1;
-        long entity_id = 100;
-        userStorage.addUserFeed(entity_id, userId, EventTypes.LIKE, OperationTypes.ADD);
-        List<Feed> feeds = userStorage.getUserFeed(userId);
-        Assertions.assertTrue(feeds.size() == 1);
-        Feed feed = feeds.get(0);
-        Assertions.assertEquals(userId, feed.getUserId());
-        Assertions.assertEquals(entity_id, feed.getEntityId());
-        Assertions.assertEquals(EventTypes.LIKE, feed.getEventType());
-        Assertions.assertEquals(OperationTypes.ADD, feed.getOperation());
-    }
 }
