@@ -2,10 +2,10 @@ package ru.yandex.practicum.filmorate.storage.user;
 
 import ru.yandex.practicum.filmorate.model.Feed;
 import ru.yandex.practicum.filmorate.model.User;
-
-import java.util.List;
 import ru.yandex.practicum.filmorate.model.enums.EventTypes;
 import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
+
+import java.util.List;
 
 public interface UserStorage {
 
@@ -31,5 +31,5 @@ public interface UserStorage {
 
     List<Feed> getUserFeed(int id);
 
-    void addUserFeed(int entityId, int userId, EventTypes eventType, OperationTypes operation);
+    void addUserFeed(long entityId, int userId, EventTypes eventType, OperationTypes operation);
 }

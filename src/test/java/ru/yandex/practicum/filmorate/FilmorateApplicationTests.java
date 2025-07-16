@@ -9,8 +9,11 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
+import ru.yandex.practicum.filmorate.model.Feed;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.enums.EventTypes;
+import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
@@ -301,5 +304,19 @@ class FilmorateApplicationTests {
         Assertions.assertTrue(films.size() == 2);
         Assertions.assertTrue(films.contains(filmStorage.getFilmById(1)));
         Assertions.assertTrue(films.contains(filmStorage.getFilmById(2)));
+    }
+
+    @Test
+    public void getUserFeed() {
+        int userId = 1;
+        long entity_id = 100;
+        userStorage.addUserFeed(entity_id, userId, EventTypes.LIKE, OperationTypes.ADD);
+        List<Feed> feeds = userStorage.getUserFeed(userId);
+        Assertions.assertTrue(feeds.size() == 1);
+        Feed feed = feeds.get(0);
+        Assertions.assertEquals(userId, feed.getUserId());
+        Assertions.assertEquals(entity_id, feed.getEntityId());
+        Assertions.assertEquals(EventTypes.LIKE, feed.getEventType());
+        Assertions.assertEquals(OperationTypes.ADD, feed.getOperation());
     }
 }

@@ -36,6 +36,7 @@ public class FilmDbStorage implements FilmStorage {
     private final MpaDbStorage mpaDbStorage;
     private final UserStorage userStorage;
     private final DirectorDbStorage directorDbStorage;
+
     @Autowired
     public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
@@ -208,7 +209,7 @@ public class FilmDbStorage implements FilmStorage {
         return directorFilms;
     }
 
-//    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
+    //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
 //            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
