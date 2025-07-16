@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.storage.review;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -65,14 +66,7 @@ public class ReviewDbStorage implements ReviewStorage {
 
         checkReviewPresence(newReview.getReviewId());
         String sql = "UPDATE REVIEWS SET content=?, is_positive=?, user_id=?, film_id=? WHERE review_id=?";
-        jdbcTemplate.update(
-                sql,
-                newReview.getContent(),
-                newReview.getIsPositive(),
-                newReview.getUserId(),
-                newReview.getFilmId(),
-                newReview.getReviewId()
-        );
+        jdbcTemplate.update(sql, newReview.getContent(), newReview.getIsPositive(), newReview.getUserId(), newReview.getFilmId(), newReview.getReviewId());
         newReview.setUseful(calculateUseful(newReview.getReviewId()));
         userStorage.addUserFeed(newReview.getReviewId(), newReview.getUserId(), EventTypes.REVIEW, OperationTypes.UPDATE);
         return newReview;
@@ -140,16 +134,16 @@ public class ReviewDbStorage implements ReviewStorage {
     public void addDislike(int reviewId, int userId) {
         checkReviewPresence(reviewId);
         userStorage.getUserById(userId);
-
         String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
-        int currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-
-        if (currentUseful == 0) {
+        try {
+            Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
+            if (currentUseful == 1) {
+                String updateSql = "UPDATE review_likes SET useful = -1 WHERE review_id = ? AND user_id = ?";
+                jdbcTemplate.update(updateSql, reviewId, userId);
+            }
+        } catch (EmptyResultDataAccessException e) {
             String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, -1)";
             jdbcTemplate.update(insertSql, reviewId, userId);
-        } else if (currentUseful == 1) {
-            String updateSql = "UPDATE review_likes SET useful = -1 WHERE review_id = ? AND user_id = ?";
-            jdbcTemplate.update(updateSql, reviewId, userId);
         }
     }
 
