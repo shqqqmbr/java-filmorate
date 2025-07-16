@@ -133,7 +133,7 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<Feed> getUserFeed(int userId) {
         checkUserPresence(userId);
-        String sql = "SELECT * FROM feed WHERE user_Id = ?";
+        String sql = "SELECT * FROM feed WHERE user_id = ?";
         return jdbcTemplate.query(sql, new FeedRowMapper(), userId);
     }
 

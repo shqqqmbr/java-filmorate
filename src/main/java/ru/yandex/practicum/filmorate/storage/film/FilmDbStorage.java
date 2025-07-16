@@ -36,13 +36,12 @@ public class FilmDbStorage implements FilmStorage {
     private final MpaDbStorage mpaDbStorage;
     private final UserStorage userStorage;
     private final DirectorDbStorage directorDbStorage;
-
     @Autowired
-    public FilmDbStorage(JdbcTemplate jdbcTemplate) {
+    public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
-        this.userStorage = new UserDbStorage(jdbcTemplate);
+        this.userStorage = userStorage;
         this.directorDbStorage = new DirectorDbStorage(jdbcTemplate);
     }
 
