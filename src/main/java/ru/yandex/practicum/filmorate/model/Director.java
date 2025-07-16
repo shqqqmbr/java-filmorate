@@ -6,16 +6,16 @@ import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import ru.yandex.practicum.filmorate.controller.marker.Marker;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Director {
-    @Positive(groups = Marker.OnUpdate.class)
-    @NotNull(groups = Marker.OnUpdate.class)
+public class
+Director {
+    @Positive
+    @NotNull
     private Integer id;
-    @NotBlank(groups = Marker.OnCreate.class)
+    @NotBlank
     private String name;
 
     public boolean hasId() {
