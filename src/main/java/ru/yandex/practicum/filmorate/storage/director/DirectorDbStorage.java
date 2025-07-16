@@ -81,8 +81,14 @@ public class DirectorDbStorage implements DirectorStorage {
     public void deleteDirector(int id) {
         String sql = "DELETE FROM directors WHERE director_id = ?";
         checkDirectorPresence(id);
-        log.info("Успешно удаляем из базы данных режиссера с id: {}", id);
         jdbcTemplate.update(sql, id);
+        log.info("Директор с id={} удален", id);
+        boolean exists = jdbcTemplate.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM directors WHERE director_id = ?)",
+                Boolean.class,
+                id
+        );
+        log.info("Директор с id={} все еще существует? {}", id, exists);
     }
 
     @Override

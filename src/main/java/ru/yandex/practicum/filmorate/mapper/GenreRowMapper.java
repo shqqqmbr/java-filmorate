@@ -11,7 +11,7 @@ public class GenreRowMapper implements RowMapper<Genre> {
     public Genre mapRow(ResultSet resultSet, int rowNum) throws SQLException {
         Genre genre = new Genre();
         genre.setId(resultSet.getInt("genre_id"));
-        genre.setName(resultSet.getString("genre_name"));
+        genre.setName(resultSet.wasNull() ? null : resultSet.getString("genre_name"));
         return genre;
     }
 }

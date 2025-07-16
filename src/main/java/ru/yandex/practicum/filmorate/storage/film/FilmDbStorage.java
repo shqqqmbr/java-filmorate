@@ -17,15 +17,11 @@ import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 import ru.yandex.practicum.filmorate.storage.director.DirectorDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
@@ -34,7 +30,7 @@ public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final MpaDbStorage mpaDbStorage;
-    private final UserStorage userStorage;
+    private final UserDbStorage userStorage;
     private final DirectorDbStorage directorDbStorage;
 
     @Autowired
@@ -103,9 +99,12 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getMpa().getId(),
                 newFilm.getId()
         );
+        String deleteGenresSql = "DELETE FROM film_genres WHERE film_id = ?";
+        jdbcTemplate.update(deleteGenresSql, newFilm.getId());
+        String deleteDirectorsSql = "DELETE FROM film_directors WHERE film_id = ?";
+        jdbcTemplate.update(deleteDirectorsSql, newFilm.getId());
         addGenre(newFilm.getId(), newFilm.getGenres());
         addDirectors(newFilm.getId(), newFilm.getDirectors());
-        newFilm.setGenres(newFilm.getGenres());
         return newFilm;
     }
 
@@ -220,14 +219,17 @@ public class FilmDbStorage implements FilmStorage {
         if (genres == null || genres.isEmpty()) {
             return;
         }
-        checkFilmPresence(filmId);
-        Set<Integer> genreIds = genres.stream()
+        List<Genre> sortedGenres = genres.stream()
+                .sorted(Comparator.comparing(Genre::getId))
+                .collect(Collectors.toList());
+        Set<Integer> genreIds = sortedGenres.stream()
                 .map(Genre::getId)
                 .collect(Collectors.toSet());
-        String placeholder = genres.stream().map(id -> "?").collect(Collectors.joining(","));
+        String placeholder = sortedGenres.stream().map(id -> "?").collect(Collectors.joining(","));
         String checkSql = String.format("Select genre_id FROM genres WHERE genre_id IN (%s)", placeholder);
-        List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkSql, genreIds.toArray(), Integer.class);
-
+        List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkSql, sortedGenres.stream()
+                .map(Genre::getId)
+                .toArray(), Integer.class);
         if (existingGenreIds.size() != genreIds.size()) {
             Set<Integer> missingIds = genreIds.stream()
                     .filter(id -> !existingGenreIds.contains(id))
@@ -237,7 +239,7 @@ public class FilmDbStorage implements FilmStorage {
 
         jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
         String insertSql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
-        jdbcTemplate.batchUpdate(insertSql, genres.stream()
+        jdbcTemplate.batchUpdate(insertSql, sortedGenres.stream()
                 .map(genre -> new Object[]{filmId, genre.getId()})
                 .collect(Collectors.toList()));
     }
