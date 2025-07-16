@@ -38,11 +38,11 @@ public class FilmDbStorage implements FilmStorage {
     private final DirectorDbStorage directorDbStorage;
 
     @Autowired
-    public FilmDbStorage(JdbcTemplate jdbcTemplate) {
+    public FilmDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
         this.mpaDbStorage = new MpaDbStorage(jdbcTemplate);
-        this.userStorage = new UserDbStorage(jdbcTemplate);
+        this.userStorage = userStorage;
         this.directorDbStorage = new DirectorDbStorage(jdbcTemplate);
     }
 
@@ -209,7 +209,7 @@ public class FilmDbStorage implements FilmStorage {
         return directorFilms;
     }
 
-//    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
+    //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
 //            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {

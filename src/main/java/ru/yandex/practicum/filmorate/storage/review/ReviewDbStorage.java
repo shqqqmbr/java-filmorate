@@ -27,10 +27,10 @@ public class ReviewDbStorage implements ReviewStorage {
     private final FilmStorage filmStorage;
 
     @Autowired
-    public ReviewDbStorage(JdbcTemplate jdbcTemplate) {
+    public ReviewDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.userStorage = new UserDbStorage(jdbcTemplate);
-        this.filmStorage = new FilmDbStorage(jdbcTemplate);
+        this.filmStorage = new FilmDbStorage(jdbcTemplate, userStorage);
     }
 
     @Override
@@ -81,8 +81,10 @@ public class ReviewDbStorage implements ReviewStorage {
     @Override
     public void deleteReview(int id) {
         checkReviewPresence(id);
+        Review review = getReviewById(id);
         String sql = "DELETE FROM REVIEWS WHERE review_id = ?";
         jdbcTemplate.update(sql, id);
+        userStorage.addUserFeed(review.getReviewId(), review.getUserId(), EventTypes.REVIEW, OperationTypes.REMOVE);
     }
 
     @Override
@@ -90,8 +92,6 @@ public class ReviewDbStorage implements ReviewStorage {
         checkReviewPresence(id);
         String sql = "SELECT * FROM REVIEWS WHERE review_id = ?";
         Review review = jdbcTemplate.queryForObject(sql, new ReviewRowMapper(), id);
-        review.setUseful(calculateUseful(id));
-        userStorage.addUserFeed(review.getReviewId(), review.getUserId(), EventTypes.REVIEW, OperationTypes.REMOVE);
         return review;
     }
 

@@ -1,7 +1,5 @@
 package ru.yandex.practicum.filmorate.model;
 
-import java.sql.Timestamp;
-import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 import ru.yandex.practicum.filmorate.model.enums.EventTypes;
@@ -13,8 +11,8 @@ public class Feed {
 
     private Long eventId;
     private Long entityId;
-    private Long userId;
-    private Timestamp timestamp = Timestamp.from(Instant.now());
+    private int userId;
+    private long timestamp;
     private EventTypes eventType;
     private OperationTypes operation;
 }
