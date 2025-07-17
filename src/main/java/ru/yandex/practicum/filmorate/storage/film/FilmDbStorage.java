@@ -83,7 +83,7 @@ public class FilmDbStorage implements FilmStorage {
         }
         addGenre(film.getId(), genreSet);
         addDirectors(film.getId(), film.getDirectors());
-        return film;
+        return getFilmById(film.getId());
     }
 
     @Override
@@ -114,7 +114,8 @@ public class FilmDbStorage implements FilmStorage {
         addGenre(newFilm.getId(), newFilm.getGenres());
         addDirectors(newFilm.getId(), newFilm.getDirectors());
 
-        return newFilm;
+
+        return getFilmById(newFilm.getId());
     }
 
     @Override
@@ -235,27 +236,26 @@ public class FilmDbStorage implements FilmStorage {
         if (genres == null || genres.isEmpty()) {
             return;
         }
-        List<Genre> sortedGenres = genres.stream()
-                .sorted(Comparator.comparing(Genre::getId))
-                .collect(Collectors.toList());
-        Set<Integer> genreIds = sortedGenres.stream()
-                .map(Genre::getId)
-                .collect(Collectors.toSet());
-        String placeholder = sortedGenres.stream().map(id -> "?").collect(Collectors.joining(","));
+
+        String deleteGenreSql = "DELETE FROM film_genres WHERE film_id = ?";
+        String insertGenreSql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
+
+        String placeholder = genres.stream().map(id -> "?").collect(Collectors.joining(","));
         String checkSql = String.format("Select genre_id FROM genres WHERE genre_id IN (%s)", placeholder);
-        List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkSql, sortedGenres.stream()
+        List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkSql, genres.stream()
                 .map(Genre::getId)
                 .toArray(), Integer.class);
-        if (existingGenreIds.size() != genreIds.size()) {
-            Set<Integer> missingIds = genreIds.stream()
+
+        if (existingGenreIds.size() != genres.size()) {
+            Set<Integer> missingIds = genres.stream()
+                    .map(Genre::getId)
                     .filter(id -> !existingGenreIds.contains(id))
                     .collect(Collectors.toSet());
             throw new NotFoundException("Жанры с id=" + missingIds + " не найдены в справочнике");
         }
 
-        jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
-        String insertSql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
-        jdbcTemplate.batchUpdate(insertSql, sortedGenres.stream()
+        jdbcTemplate.update(deleteGenreSql, filmId);
+        jdbcTemplate.batchUpdate(insertGenreSql, genres.stream()
                 .map(genre -> new Object[]{filmId, genre.getId()})
                 .collect(Collectors.toList()));
     }

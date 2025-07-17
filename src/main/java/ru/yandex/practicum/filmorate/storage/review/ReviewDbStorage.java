@@ -18,6 +18,7 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.Comparator;
 import java.util.List;
 
 @Repository
@@ -60,19 +61,21 @@ public class ReviewDbStorage implements ReviewStorage {
 
     @Override
     public Review updateReview(Review newReview) {
-        checkReviewPresence(newReview.getReviewId());
+        Review updatedReview = getReviewById(newReview.getReviewId());
+        updatedReview.setContent(newReview.getContent());
+        updatedReview.setIsPositive(newReview.getIsPositive());
+
         userStorage.getUserById(newReview.getUserId());
         filmStorage.getFilmById(newReview.getFilmId());
         String sql = "UPDATE REVIEWS SET content=?, is_positive=? WHERE review_id=?";
         jdbcTemplate.update(
                 sql,
-                newReview.getContent(),
-                newReview.getIsPositive(),
-                newReview.getReviewId()
+                updatedReview.getContent(),
+                updatedReview.getIsPositive(),
+                updatedReview.getReviewId()
         );
-        newReview.setUseful(calculateUseful(newReview.getReviewId()));
-        userStorage.addUserFeed(newReview.getReviewId(), newReview.getUserId(), EventTypes.REVIEW, OperationTypes.UPDATE);
-        return newReview;
+        userStorage.addUserFeed(updatedReview.getReviewId(), updatedReview.getUserId(), EventTypes.REVIEW, OperationTypes.UPDATE);
+        return updatedReview;
     }
 
     @Override
@@ -88,28 +91,34 @@ public class ReviewDbStorage implements ReviewStorage {
     public Review getReviewById(int id) {
         checkReviewPresence(id);
         String sql = "SELECT * FROM REVIEWS WHERE review_id = ?";
-        Review review = jdbcTemplate.queryForObject(sql, new ReviewRowMapper(), id);
+        Review review = jdbcTemplate.queryForObject(sql, new ReviewRowMapper(jdbcTemplate), id);
         return review;
     }
 
     @Override
     public List<Review> getReviewsByFilmId(int filmId, int count) {
         String sql = "SELECT * FROM REVIEWS WHERE film_id = ? LIMIT ?";
-        List<Review> reviews = jdbcTemplate.query(sql, new Object[]{filmId, count}, new ReviewRowMapper());
-        for (Review review : reviews) {
-            review.setUseful(calculateUseful(review.getReviewId()));
-        }
-        return reviews;
+        List<Review> reviews = jdbcTemplate.query(sql, new Object[]{filmId, count}, new ReviewRowMapper(jdbcTemplate));
+
+        return reviews.stream()
+                .sorted(Comparator.comparing(Review::getUseful).reversed())
+                .toList();
     }
 
     @Override
     public List<Review> getAllReviews(int count) {
-        String sql = "SELECT r.*, COALESCE(SUM(rl.useful), 0) as useful_sum " +
-                "FROM REVIEWS r LEFT JOIN review_likes rl ON r.review_id = rl.review_id " +
-                "GROUP BY r.review_id " +
-                "ORDER BY useful_sum DESC " +
-                "LIMIT ?";
-        return jdbcTemplate.query(sql, new ReviewRowMapper(), count);
+        String sql = """
+                SELECT r.*, COALESCE(like_sum, 0) as useful_sum
+                FROM REVIEWS r
+                LEFT JOIN (
+                    SELECT review_id, SUM(useful) as like_sum
+                    FROM review_likes
+                    GROUP BY review_id
+                ) rl ON r.review_id = rl.review_id
+                ORDER BY useful_sum DESC
+                LIMIT ?
+                """;
+        return jdbcTemplate.query(sql, new ReviewRowMapper(jdbcTemplate), count);
     }
 
     @Override
@@ -131,15 +140,14 @@ public class ReviewDbStorage implements ReviewStorage {
                 jdbcTemplate.update(updateSql, reviewId, userId);
             }
         }
+        userStorage.addUserFeed(reviewId, userId, EventTypes.LIKE, OperationTypes.ADD);
     }
 
     @Override
     public void addDislike(int reviewId, int userId) {
-        // Проверяем существование отзыва и пользователя
         checkReviewPresence(reviewId);
         userStorage.getUserById(userId);
 
-        // Изменяем запрос и обработку результата
         String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
 
         try {
@@ -150,7 +158,6 @@ public class ReviewDbStorage implements ReviewStorage {
                 jdbcTemplate.update(updateSql, reviewId, userId);
             }
         } catch (EmptyResultDataAccessException e) {
-            // Если записи нет - вставляем новую
             String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, -1)";
             jdbcTemplate.update(insertSql, reviewId, userId);
         }
@@ -168,6 +175,7 @@ public class ReviewDbStorage implements ReviewStorage {
             String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
             jdbcTemplate.update(deleteSql, reviewId, userId);
         }
+        userStorage.addUserFeed(reviewId, userId, EventTypes.LIKE, OperationTypes.REMOVE);
     }
 
     @Override
@@ -192,9 +200,4 @@ public class ReviewDbStorage implements ReviewStorage {
         }
     }
 
-    private int calculateUseful(int reviewId) {
-        String sql = "SELECT SUM(useful) FROM review_likes WHERE review_id = ?";
-        Integer rating = jdbcTemplate.queryForObject(sql, Integer.class, reviewId);
-        return rating != null ? rating : 0;
-    }
 }
