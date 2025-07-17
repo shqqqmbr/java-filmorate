@@ -100,12 +100,12 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    public void addFriend(int userId, int frienId) {
+    public void addFriend(int userId, int friendId) {
         checkUserPresence(userId);
-        checkUserPresence(frienId);
+        checkUserPresence(friendId);
         String sql = "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, userId, frienId, true);
-        addUserFeed(frienId, userId, EventTypes.FRIEND, OperationTypes.ADD);
+        jdbcTemplate.update(sql, userId, friendId, true);
+        addUserFeed(friendId, userId, EventTypes.FRIEND, OperationTypes.ADD);
     }
 
     @Override

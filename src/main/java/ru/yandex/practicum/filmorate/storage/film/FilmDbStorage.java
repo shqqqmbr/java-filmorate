@@ -53,7 +53,6 @@ public class FilmDbStorage implements FilmStorage {
         if (!mpaExists) {
             throw new NotFoundException("MPA с id=" + mpaId + " не найден");
         }
-
         Set<Genre> genreSet = film.getGenres();
         List<Integer> filmsGenreId = genreSet.stream()
                 .map(Genre::getId)
@@ -66,7 +65,6 @@ public class FilmDbStorage implements FilmStorage {
         if (!missingIds.isEmpty()) {
             throw new NotFoundException("ID жанров не найдены в базе: " + missingIds);
         }
-
         jdbcTemplate.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, film.getName());
@@ -91,7 +89,6 @@ public class FilmDbStorage implements FilmStorage {
         checkFilmPresence(newFilm.getId());
         Mpa mpa = mpaDbStorage.getMpaById(newFilm.getMpa().getId());
         newFilm.setMpa(mpa);
-
         String sql = "UPDATE FILMS SET name = ?, description = ?, release_date = ?, duration = ?, mpa = ? WHERE id = ?";
         jdbcTemplate.update(
                 sql,
@@ -102,19 +99,14 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getMpa().getId(),
                 newFilm.getId()
         );
-
         jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", newFilm.getId());
         jdbcTemplate.update("DELETE FROM film_directors WHERE film_id = ?", newFilm.getId());
-
         Set<Genre> sortedGenres = newFilm.getGenres().stream()
                 .sorted(Comparator.comparingInt(Genre::getId))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         newFilm.setGenres(sortedGenres);
-
         addGenre(newFilm.getId(), newFilm.getGenres());
         addDirectors(newFilm.getId(), newFilm.getDirectors());
-
-
         return getFilmById(newFilm.getId());
     }
 
@@ -153,6 +145,7 @@ public class FilmDbStorage implements FilmStorage {
         String checkSql = "SELECT COUNT(*) FROM likes WHERE film_id = ? AND user_id = ?";
         int count = jdbcTemplate.queryForObject(checkSql, Integer.class, filmId, userId);
         if (count > 0) {
+            userStorage.addUserFeed(filmId, userId, EventTypes.LIKE, OperationTypes.ADD);
             return;
         }
         String insertSql = "INSERT INTO likes (film_id, user_id) VALUES (?, ?)";
@@ -184,12 +177,10 @@ public class FilmDbStorage implements FilmStorage {
                 ORDER BY likes_count DESC
                 LIMIT :count
                 """;
-
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("genreId", genreId)
                 .addValue("year", year)
                 .addValue("count", count);
-
         return namedParameterJdbcTemplate.query(sql, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
@@ -230,22 +221,17 @@ public class FilmDbStorage implements FilmStorage {
         return directorFilms;
     }
 
-    //    В методе addGenre я решил не использовать getGenreById. Избавился от конструкции
-//            (+ ... +) путем добавления плейсхолдера.
     private void addGenre(int filmId, Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
             return;
         }
-
         String deleteGenreSql = "DELETE FROM film_genres WHERE film_id = ?";
         String insertGenreSql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
-
         String placeholder = genres.stream().map(id -> "?").collect(Collectors.joining(","));
         String checkSql = String.format("Select genre_id FROM genres WHERE genre_id IN (%s)", placeholder);
         List<Integer> existingGenreIds = jdbcTemplate.queryForList(checkSql, genres.stream()
                 .map(Genre::getId)
                 .toArray(), Integer.class);
-
         if (existingGenreIds.size() != genres.size()) {
             Set<Integer> missingIds = genres.stream()
                     .map(Genre::getId)
@@ -253,7 +239,6 @@ public class FilmDbStorage implements FilmStorage {
                     .collect(Collectors.toSet());
             throw new NotFoundException("Жанры с id=" + missingIds + " не найдены в справочнике");
         }
-
         jdbcTemplate.update(deleteGenreSql, filmId);
         jdbcTemplate.batchUpdate(insertGenreSql, genres.stream()
                 .map(genre -> new Object[]{filmId, genre.getId()})
@@ -270,10 +255,8 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getCommonFilms(int userId, int friendId) {
-        // для проверки, существует ли пользователь
         userStorage.getUserById(userId);
         userStorage.getUserById(friendId);
-
         String sqlRequest = """
                 SELECT f.*, m.*, COUNT(l.film_id) AS likes_count
                 FROM films f
@@ -291,11 +274,9 @@ public class FilmDbStorage implements FilmStorage {
                 GROUP BY f.id, m.mpa_id
                 ORDER BY likes_count DESC
                 """;
-
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("userId", userId)
                 .addValue("friendId", friendId);
-
         return namedParameterJdbcTemplate.query(sqlRequest, params, new FilmRowMapper(namedParameterJdbcTemplate));
     }
 
@@ -304,7 +285,6 @@ public class FilmDbStorage implements FilmStorage {
         if (query == null || query.trim().isEmpty()) {
             return Collections.emptyList();
         }
-
         String sqlDir = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -316,7 +296,6 @@ public class FilmDbStorage implements FilmStorage {
                 GROUP BY f.id
                 ORDER BY COUNT(l.user_id) DESC
                 """;
-
         String sqlTitle = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -326,7 +305,6 @@ public class FilmDbStorage implements FilmStorage {
                 GROUP BY f.id
                 ORDER BY COUNT(l.user_id) DESC
                 """;
-
         String sqlDirTitle = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -338,7 +316,6 @@ public class FilmDbStorage implements FilmStorage {
                 GROUP BY f.id
                 ORDER BY COUNT(l.user_id) DESC
                 """;
-
         List<Film> films = new ArrayList<>();
         switch (by) {
             case "director":
@@ -358,7 +335,6 @@ public class FilmDbStorage implements FilmStorage {
 
     public List<Film> getUserRecommendations(int userId) {
         userStorage.getUserById(userId);
-
         String sql = """
                 SELECT f.*, m.*
                   FROM LIKES l1
@@ -370,7 +346,6 @@ public class FilmDbStorage implements FilmStorage {
                    AND l3.FILM_ID NOT IN (SELECT l.FILM_ID FROM LIKES l WHERE l.USER_ID = l1.USER_ID )
                 ORDER BY f.ID
                 """;
-
         return jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate), userId);
 
     }
@@ -385,13 +360,11 @@ public class FilmDbStorage implements FilmStorage {
                         director.getId());
                 String sql = "INSERT INTO film_directors (film_id, director_id) VALUES (?, ?)";
                 jdbcTemplate.update(sql, filmId, director.getId());
-
                 if (director.hasName()) {
                     jdbcTemplate.update("DELETE FROM directors WHERE director_id = ?", director.getId());
                     sql = "INSERT INTO directors (director_id, name) VALUES (?, ?)";
                     jdbcTemplate.update(sql, director.getId(), director.getName());
                 }
-
             }
         });
     }

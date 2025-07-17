@@ -39,7 +39,6 @@ public class ReviewDbStorage implements ReviewStorage {
     public Review addReview(Review review) {
         userStorage.getUserById(review.getUserId());
         filmStorage.getFilmById(review.getFilmId());
-
         String sql = "INSERT INTO REVIEWS (content, is_positive, user_id, film_id) VALUES (?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(con -> {
@@ -64,7 +63,6 @@ public class ReviewDbStorage implements ReviewStorage {
         Review updatedReview = getReviewById(newReview.getReviewId());
         updatedReview.setContent(newReview.getContent());
         updatedReview.setIsPositive(newReview.getIsPositive());
-
         userStorage.getUserById(newReview.getUserId());
         filmStorage.getFilmById(newReview.getFilmId());
         String sql = "UPDATE REVIEWS SET content=?, is_positive=? WHERE review_id=?";
@@ -125,10 +123,8 @@ public class ReviewDbStorage implements ReviewStorage {
     public void addLike(int reviewId, int userId) {
         checkReviewPresence(reviewId);
         userStorage.getUserById(userId);
-
         String checkSql = "SELECT COUNT(*) FROM review_likes WHERE review_id = ? AND user_id = ?";
         Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-
         if (count == 0) {
             String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, 1)";
             jdbcTemplate.update(insertSql, reviewId, userId);
@@ -140,19 +136,15 @@ public class ReviewDbStorage implements ReviewStorage {
                 jdbcTemplate.update(updateSql, reviewId, userId);
             }
         }
-        userStorage.addUserFeed(reviewId, userId, EventTypes.LIKE, OperationTypes.ADD);
     }
 
     @Override
     public void addDislike(int reviewId, int userId) {
         checkReviewPresence(reviewId);
         userStorage.getUserById(userId);
-
         String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
-
         try {
             Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-
             if (currentUseful == 1) {
                 String updateSql = "UPDATE review_likes SET useful = -1 WHERE review_id = ? AND user_id = ?";
                 jdbcTemplate.update(updateSql, reviewId, userId);
@@ -167,25 +159,20 @@ public class ReviewDbStorage implements ReviewStorage {
     public void deleteLike(int reviewId, int userId) {
         checkReviewPresence(reviewId);
         userStorage.getUserById(userId);
-
         String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
         Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-
         if (currentUseful == 1) {
             String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
             jdbcTemplate.update(deleteSql, reviewId, userId);
         }
-        userStorage.addUserFeed(reviewId, userId, EventTypes.LIKE, OperationTypes.REMOVE);
     }
 
     @Override
     public void deleteDislike(int reviewId, int userId) {
         checkReviewPresence(reviewId);
         userStorage.getUserById(userId);
-
         String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
         Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-
         if (currentUseful == -1) {
             String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
             jdbcTemplate.update(deleteSql, reviewId, userId);
