@@ -103,11 +103,9 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getId()
         );
 
-        // Удаление старых данных
         jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", newFilm.getId());
         jdbcTemplate.update("DELETE FROM film_directors WHERE film_id = ?", newFilm.getId());
 
-        // Сортировка жанров перед сохранением
         Set<Genre> sortedGenres = newFilm.getGenres().stream()
                 .sorted(Comparator.comparingInt(Genre::getId))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
