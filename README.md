@@ -3,7 +3,7 @@
 Проект по подбору фильмов.
 
 ## ER-диаграмма
-![drawSQL-image-export-2025-06-14](https://github.com/user-attachments/assets/b48af6ad-dc06-4fba-b27c-4d0824a06b70)
+<img width="3260" height="2016" alt="drawSQL-image-export-2025-07-17" src="https://github.com/user-attachments/assets/a7a74c6f-2f3a-4c46-ab74-66720340c3de" />
 
 ## Пояснение к схеме
 
