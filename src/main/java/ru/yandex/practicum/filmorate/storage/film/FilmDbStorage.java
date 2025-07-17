@@ -91,6 +91,7 @@ public class FilmDbStorage implements FilmStorage {
         checkFilmPresence(newFilm.getId());
         Mpa mpa = mpaDbStorage.getMpaById(newFilm.getMpa().getId());
         newFilm.setMpa(mpa);
+
         String sql = "UPDATE FILMS SET name = ?, description = ?, release_date = ?, duration = ?, mpa = ? WHERE id = ?";
         jdbcTemplate.update(
                 sql,
@@ -101,12 +102,20 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getMpa().getId(),
                 newFilm.getId()
         );
-        String deleteGenresSql = "DELETE FROM film_genres WHERE film_id = ?";
-        jdbcTemplate.update(deleteGenresSql, newFilm.getId());
-        String deleteDirectorsSql = "DELETE FROM film_directors WHERE film_id = ?";
-        jdbcTemplate.update(deleteDirectorsSql, newFilm.getId());
+
+        // Удаление старых данных
+        jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", newFilm.getId());
+        jdbcTemplate.update("DELETE FROM film_directors WHERE film_id = ?", newFilm.getId());
+
+        // Сортировка жанров перед сохранением
+        Set<Genre> sortedGenres = newFilm.getGenres().stream()
+                .sorted(Comparator.comparingInt(Genre::getId))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        newFilm.setGenres(sortedGenres);
+
         addGenre(newFilm.getId(), newFilm.getGenres());
         addDirectors(newFilm.getId(), newFilm.getDirectors());
+
         return newFilm;
     }
 
