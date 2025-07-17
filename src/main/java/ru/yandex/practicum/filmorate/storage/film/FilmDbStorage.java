@@ -12,6 +12,7 @@ import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.model.enums.EventTypes;
 import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 import ru.yandex.practicum.filmorate.storage.director.DirectorDbStorage;
@@ -88,7 +89,8 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film updateFilm(Film newFilm) {
         checkFilmPresence(newFilm.getId());
-        mpaDbStorage.getMpaById(newFilm.getMpa().getId());
+        Mpa mpa = mpaDbStorage.getMpaById(newFilm.getMpa().getId());
+        newFilm.setMpa(mpa);
         String sql = "UPDATE FILMS SET name = ?, description = ?, release_date = ?, duration = ?, mpa = ? WHERE id = ?";
         jdbcTemplate.update(
                 sql,
@@ -166,6 +168,8 @@ public class FilmDbStorage implements FilmStorage {
                 LEFT JOIN likes ON films.id = likes.film_id
                 LEFT JOIN film_genres ON films.id = film_genres.film_id
                 LEFT JOIN genres ON film_genres.genre_id = genres.genre_id
+                LEFT JOIN film_directors ON films.id = film_directors.film_id
+                LEFT JOIN directors ON film_directors.director_id = directors.director_id
                 WHERE (:genreId IS NULL OR genres.genre_id = :genreId)
                 AND (:year IS NULL OR YEAR(films.release_date) = :year)
                 GROUP BY films.id, mpa.mpa_id
@@ -183,6 +187,11 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getSortedFilms(int directorId, String sortBy) {
+        String checkSql = "SELECT COUNT(*) FROM directors WHERE director_id = ?";
+        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, directorId);
+        if (count == 0) {
+            throw new NotFoundException("Режиссер не найден");
+        }
         String sqlLikes = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -285,6 +294,10 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getSearchResults(String query, String by) {
+        if (query == null || query.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
         String sqlDir = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -296,6 +309,7 @@ public class FilmDbStorage implements FilmStorage {
                 GROUP BY f.id
                 ORDER BY COUNT(l.user_id) DESC
                 """;
+
         String sqlTitle = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -305,6 +319,7 @@ public class FilmDbStorage implements FilmStorage {
                 GROUP BY f.id
                 ORDER BY COUNT(l.user_id) DESC
                 """;
+
         String sqlDirTitle = """
                 SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
                 FROM films AS f
@@ -312,7 +327,7 @@ public class FilmDbStorage implements FilmStorage {
                 LEFT JOIN film_directors AS fd ON f.id = fd.film_id
                 LEFT JOIN directors AS d ON fd.director_id = d.director_id
                 LEFT JOIN likes AS l ON f.id = l.film_id
-                WHERE d.name LIKE CONCAT('%',?,'%') OR f.name LIKE CONCAT('%',?,'%')
+                WHERE LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%')) OR LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))
                 GROUP BY f.id
                 ORDER BY COUNT(l.user_id) DESC
                 """;

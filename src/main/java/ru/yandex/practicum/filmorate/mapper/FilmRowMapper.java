@@ -3,15 +3,14 @@ package ru.yandex.practicum.filmorate.mapper;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.Mpa;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 
 public class FilmRowMapper implements RowMapper<Film> {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -29,19 +28,19 @@ public class FilmRowMapper implements RowMapper<Film> {
         film.setReleaseDate(resultSet.getDate("release_date").toLocalDate());
         film.setDuration(resultSet.getInt("duration"));
 
-        // Заполняем MPA
         Mpa mpa = new Mpa();
         mpa.setId(resultSet.getInt("mpa_id"));
         mpa.setName(resultSet.getString("mpa_name"));
         film.setMpa(mpa);
 
-        // Заполняем жанры
         Set<Genre> genres = getGenresForFilm(film.getId());
         film.setGenres(genres);
 
-        // Заполняем лайки
         Set<Integer> likes = getLikesForFilm(film.getId());
         film.setLikes(likes);
+
+        Set<Director> directors = getDirectorsForFilm(film.getId());
+        film.setDirectors(directors);
 
         return film;
     }
@@ -57,12 +56,7 @@ public class FilmRowMapper implements RowMapper<Film> {
         return new LinkedHashSet<>(namedParameterJdbcTemplate.query(
                 sql,
                 new MapSqlParameterSource("filmId", filmId),
-                (rs, rowNum) -> {
-                    Genre genre = new Genre();
-                    genre.setId(rs.getInt("genre_id"));
-                    genre.setName(rs.getString("genre_name"));
-                    return genre;
-                }
+                new GenreRowMapper()
         ));
     }
 
@@ -77,5 +71,14 @@ public class FilmRowMapper implements RowMapper<Film> {
                 new MapSqlParameterSource("filmId", filmId),
                 Integer.class
         ));
+    }
+
+    private Set<Director> getDirectorsForFilm(int filmId) {
+        String sql = "SELECT d.* FROM directors d " +
+                "JOIN film_directors fd ON d.director_id = fd.director_id " +
+                "WHERE fd.film_id = :filmId";
+
+        Map<String, Object> params = Collections.singletonMap("filmId", filmId);
+        return new LinkedHashSet<>(namedParameterJdbcTemplate.query(sql, params, new DirectorRowMapper()));
     }
 }

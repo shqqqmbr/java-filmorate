@@ -11,9 +11,7 @@ import ru.yandex.practicum.filmorate.mapper.ReviewRowMapper;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.enums.EventTypes;
 import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
-import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.sql.PreparedStatement;
@@ -28,10 +26,10 @@ public class ReviewDbStorage implements ReviewStorage {
     private final FilmStorage filmStorage;
 
     @Autowired
-    public ReviewDbStorage(JdbcTemplate jdbcTemplate, UserDbStorage userStorage) {
+    public ReviewDbStorage(JdbcTemplate jdbcTemplate, UserStorage userStorage, FilmStorage filmStorage) {
         this.jdbcTemplate = jdbcTemplate;
-        this.userStorage = new UserDbStorage(jdbcTemplate);
-        this.filmStorage = new FilmDbStorage(jdbcTemplate, userStorage);
+        this.userStorage = userStorage;
+        this.filmStorage = filmStorage;
     }
 
     @Override
@@ -65,8 +63,8 @@ public class ReviewDbStorage implements ReviewStorage {
         filmStorage.getFilmById(newReview.getFilmId());
 
         checkReviewPresence(newReview.getReviewId());
-        String sql = "UPDATE REVIEWS SET content=?, is_positive=?, user_id=?, film_id=? WHERE review_id=?";
-        jdbcTemplate.update(sql, newReview.getContent(), newReview.getIsPositive(), newReview.getUserId(), newReview.getFilmId(), newReview.getReviewId());
+        String sql = "UPDATE REVIEWS SET content=?, is_positive=? WHERE review_id=?";
+        jdbcTemplate.update(sql, newReview.getContent(), newReview.getIsPositive(), newReview.getReviewId());
         newReview.setUseful(calculateUseful(newReview.getReviewId()));
         userStorage.addUserFeed(newReview.getReviewId(), newReview.getUserId(), EventTypes.REVIEW, OperationTypes.UPDATE);
         return newReview;
@@ -91,22 +89,31 @@ public class ReviewDbStorage implements ReviewStorage {
 
     @Override
     public List<Review> getReviewsByFilmId(int filmId, int count) {
-        String sql = "SELECT * FROM REVIEWS WHERE film_id = ? LIMIT ?";
-        List<Review> reviews = jdbcTemplate.query(sql, new Object[]{filmId, count}, new ReviewRowMapper());
-        for (Review review : reviews) {
-            review.setUseful(calculateUseful(review.getReviewId()));
+        try {
+            filmStorage.getFilmById(filmId);
+        } catch (NotFoundException e) {
+            throw new NotFoundException("Фильм с id=" + filmId + " не найден");
         }
-        return reviews;
+        String sql = """
+                SELECT r.*, COALESCE(SUM(rl.useful), 0) AS useful_sum
+                FROM reviews r
+                LEFT JOIN review_likes rl ON r.review_id = rl.review_id
+                WHERE r.film_id = ?
+                GROUP BY r.review_id
+                ORDER BY useful_sum DESC
+                LIMIT ?
+                """;
+        return jdbcTemplate.query(sql, new Object[]{filmId, count}, new ReviewRowMapper());
     }
 
     @Override
     public List<Review> getAllReviews(int count) {
-        String sql = "SELECT * FROM REVIEWS LIMIT ?";
-        List<Review> reviews = jdbcTemplate.query(sql, new Object[]{count}, new ReviewRowMapper());
-        for (Review review : reviews) {
-            review.setUseful(calculateUseful(review.getReviewId()));
-        }
-        return reviews;
+        String sql = "SELECT r.*, COALESCE(SUM(rl.useful), 0) as useful_sum " +
+                "FROM REVIEWS r LEFT JOIN review_likes rl ON r.review_id = rl.review_id " +
+                "GROUP BY r.review_id " +
+                "ORDER BY useful_sum DESC " +
+                "LIMIT ?";
+        return jdbcTemplate.query(sql, new ReviewRowMapper(), count);
     }
 
     @Override
@@ -184,8 +191,7 @@ public class ReviewDbStorage implements ReviewStorage {
     }
 
     private int calculateUseful(int reviewId) {
-        String sql = "SELECT SUM(useful) FROM review_likes WHERE review_id = ?";
-        Integer rating = jdbcTemplate.queryForObject(sql, Integer.class, reviewId);
-        return rating != null ? rating : 0;
+        String sql = "SELECT COALESCE(SUM(useful), 0) FROM review_likes WHERE review_id = ?";
+        return jdbcTemplate.queryForObject(sql, Integer.class, reviewId);
     }
 }

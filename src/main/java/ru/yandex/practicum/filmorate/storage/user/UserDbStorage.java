@@ -126,6 +126,8 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public boolean isFriend(int userId, int friendId) {
+        checkUserPresence(userId);
+        checkUserPresence(friendId);
         String sql = "SELECT * FROM friends WHERE user_id = ? AND friend_id = ?";
         SqlRowSet rowSet = jdbcTemplate.queryForRowSet(sql, userId, friendId);
         return rowSet.next();
@@ -133,6 +135,7 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public List<Feed> getUserFeed(int userId) {
+        checkUserPresence(userId);
         String sql = "SELECT * FROM feed WHERE user_id = ?";
         return jdbcTemplate.query(sql, new FeedRowMapper(), userId);
     }
