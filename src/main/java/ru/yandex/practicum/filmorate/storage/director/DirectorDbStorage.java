@@ -100,12 +100,4 @@ public class DirectorDbStorage implements DirectorStorage {
                 + "FROM film_directors WHERE film_id = ?)";
         return new HashSet<>(jdbcTemplate.query(sql, new DirectorRowMapper(), filmId));
     }
-
-    private void checkDirectorPresence(int id) {
-        String checkSql = "SELECT COUNT(*) FROM directors WHERE director_id = ?";
-        Integer counter = jdbcTemplate.queryForObject(checkSql, Integer.class, id);
-        if (counter == null || counter == 0) {
-            throw new NotFoundException("Режиссер с id=" + id + " не найден");
-        }
-    }
 }
