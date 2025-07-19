@@ -283,17 +283,17 @@ public class FilmDbStorage implements FilmStorage {
             return Collections.emptyList();
         }
         StringBuilder sqlBuilder = new StringBuilder("""
-        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-        FROM films AS f
-        JOIN mpa ON f.mpa = mpa.mpa_id
-        LEFT JOIN likes AS l ON f.id = l.film_id
-        """);
+                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+                FROM films AS f
+                JOIN mpa ON f.mpa = mpa.mpa_id
+                LEFT JOIN likes AS l ON f.id = l.film_id
+                """);
         boolean searchByDirector = by.contains("director");
         if (searchByDirector) {
             sqlBuilder.append("""
-            LEFT JOIN film_directors AS fd ON f.id = fd.film_id
-            LEFT JOIN directors AS d ON fd.director_id = d.director_id
-            """);
+                    LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+                    LEFT JOIN directors AS d ON fd.director_id = d.director_id
+                    """);
         }
         List<String> whereConditions = new ArrayList<>();
         if (by.contains("title")) {
@@ -308,9 +308,9 @@ public class FilmDbStorage implements FilmStorage {
                     .append(String.join(" OR ", whereConditions));
         }
         sqlBuilder.append("""
-        GROUP BY f.id
-        ORDER BY COUNT(l.user_id) DESC
-        """);
+                GROUP BY f.id
+                ORDER BY COUNT(l.user_id) DESC
+                """);
         List<Film> films;
         String sql = sqlBuilder.toString();
 
