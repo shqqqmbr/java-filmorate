@@ -33,11 +33,14 @@ public class DirectorDbStorage implements DirectorStorage {
 
     @Override
     public Director getDirectorById(int id) {
-        String sql = "SELECT * FROM directors WHERE director_id = ?";
-        checkDirectorPresence(id);
-        Director director = jdbcTemplate.queryForObject(sql, new DirectorRowMapper(), id);
-        log.info("Успешно возвращаем режиссера с id: {}", id);
-        return director;
+        try {
+            String sql = "SELECT * FROM directors WHERE director_id = ?";
+            Director director = jdbcTemplate.queryForObject(sql, new DirectorRowMapper(), id);
+            log.info("Успешно возвращаем режиссера с id: {}", id);
+            return director;
+        } catch (Exception ex) {
+            throw new NotFoundException("Режиссер с id=" + id + " не найден");
+        }
     }
 
     @Override
@@ -66,29 +69,29 @@ public class DirectorDbStorage implements DirectorStorage {
 
     @Override
     public Director updateDirector(Director newDirector) {
-        String sql = "UPDATE directors SET name = ? WHERE director_id = ?";
-        checkDirectorPresence(newDirector.getId());
-        int rowsUpdated = jdbcTemplate.update(sql, newDirector.getName(), newDirector.getId());
-        if (rowsUpdated == 0) {
-            log.warn("Не получилось обновить режиссера с id: {}", newDirector.getId());
-            throw new RuntimeException("Не удалось обновить данные");
+        try{
+            String sql = "UPDATE directors SET name = ? WHERE director_id = ?";
+            int rowsUpdated = jdbcTemplate.update(sql, newDirector.getName(), newDirector.getId());
+            if (rowsUpdated == 0) {
+                log.warn("Не получилось обновить режиссера с id: {}", newDirector.getId());
+                throw new RuntimeException("Не удалось обновить данные");
+            }
+            log.info("Успешно обновляем в базе данных режиссера с id: {}", newDirector.getId());
+            return newDirector;
+        } catch (Exception ex) {
+            throw new NotFoundException("Режиссер с id=" + newDirector.getId() + " не найден");
         }
-        log.info("Успешно обновляем в базе данных режиссера с id: {}", newDirector.getId());
-        return newDirector;
     }
 
     @Override
     public void deleteDirector(int id) {
-        String sql = "DELETE FROM directors WHERE director_id = ?";
-        checkDirectorPresence(id);
-        jdbcTemplate.update(sql, id);
-        log.info("Директор с id={} удален", id);
-        boolean exists = jdbcTemplate.queryForObject(
-                "SELECT EXISTS(SELECT 1 FROM directors WHERE director_id = ?)",
-                Boolean.class,
-                id
-        );
-        log.info("Директор с id={} все еще существует? {}", id, exists);
+        try {
+            String sql = "DELETE FROM directors WHERE director_id = ?";
+            jdbcTemplate.update(sql, id);
+            log.info("Директор с id={} удален", id);
+        } catch (Exception ex){
+            throw new NotFoundException("Режиссер с id=" + id + " не найден");
+        }
     }
 
     @Override
