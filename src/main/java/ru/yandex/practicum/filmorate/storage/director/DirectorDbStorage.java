@@ -69,7 +69,7 @@ public class DirectorDbStorage implements DirectorStorage {
 
     @Override
     public Director updateDirector(Director newDirector) {
-        try{
+        try {
             String sql = "UPDATE directors SET name = ? WHERE director_id = ?";
             int rowsUpdated = jdbcTemplate.update(sql, newDirector.getName(), newDirector.getId());
             if (rowsUpdated == 0) {
@@ -89,15 +89,19 @@ public class DirectorDbStorage implements DirectorStorage {
             String sql = "DELETE FROM directors WHERE director_id = ?";
             jdbcTemplate.update(sql, id);
             log.info("Директор с id={} удален", id);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             throw new NotFoundException("Режиссер с id=" + id + " не найден");
         }
     }
 
     @Override
     public Set<Director> getFilmDirectors(int filmId) {
-        String sql = "SELECT * FROM directors WHERE director_id IN (SELECT director_id "
-                + "FROM film_directors WHERE film_id = ?)";
+        String sql = """
+                SELECT d.*
+                FROM directors d
+                JOIN film_directors fd ON fd.director_id = d.director_id
+                WHERE fd.film_id = ?
+                """;
         return new HashSet<>(jdbcTemplate.query(sql, new DirectorRowMapper(), filmId));
     }
 }
