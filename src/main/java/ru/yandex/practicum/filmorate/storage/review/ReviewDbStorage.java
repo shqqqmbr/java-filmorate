@@ -78,19 +78,25 @@ public class ReviewDbStorage implements ReviewStorage {
 
     @Override
     public void deleteReview(int id) {
-        checkReviewPresence(id);
-        Review review = getReviewById(id);
-        String sql = "DELETE FROM REVIEWS WHERE review_id = ?";
-        jdbcTemplate.update(sql, id);
-        userStorage.addUserFeed(review.getReviewId(), review.getUserId(), EventTypes.REVIEW, OperationTypes.REMOVE);
+        try {
+            Review review = getReviewById(id);
+            String sql = "DELETE FROM REVIEWS WHERE review_id = ?";
+            jdbcTemplate.update(sql, id);
+            userStorage.addUserFeed(review.getReviewId(), review.getUserId(), EventTypes.REVIEW, OperationTypes.REMOVE);
+        } catch (Exception e) {
+            throw new NotFoundException("Отзыв с id=" + id + " не найден");
+        }
     }
 
     @Override
     public Review getReviewById(int id) {
-        checkReviewPresence(id);
-        String sql = "SELECT * FROM REVIEWS WHERE review_id = ?";
-        Review review = jdbcTemplate.queryForObject(sql, new ReviewRowMapper(jdbcTemplate), id);
-        return review;
+        try {
+            String sql = "SELECT * FROM REVIEWS WHERE review_id = ?";
+            Review review = jdbcTemplate.queryForObject(sql, new ReviewRowMapper(jdbcTemplate), id);
+            return review;
+        } catch (Exception e) {
+            throw new NotFoundException("Отзыв с id=" + id + " не найден");
+        }
     }
 
     @Override
@@ -121,70 +127,73 @@ public class ReviewDbStorage implements ReviewStorage {
 
     @Override
     public void addLike(int reviewId, int userId) {
-        checkReviewPresence(reviewId);
-        userStorage.getUserById(userId);
-        String checkSql = "SELECT COUNT(*) FROM review_likes WHERE review_id = ? AND user_id = ?";
-        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-        if (count == 0) {
-            String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, 1)";
-            jdbcTemplate.update(insertSql, reviewId, userId);
-        } else {
-            String selectSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
-            Integer currentUseful = jdbcTemplate.queryForObject(selectSql, Integer.class, reviewId, userId);
-            if (currentUseful == -1) {
-                String updateSql = "UPDATE review_likes SET useful = 1 WHERE review_id = ? AND user_id = ?";
-                jdbcTemplate.update(updateSql, reviewId, userId);
+        try {
+            userStorage.getUserById(userId);
+            String checkSql = "SELECT COUNT(*) FROM review_likes WHERE review_id = ? AND user_id = ?";
+            Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
+            if (count == 0) {
+                String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, 1)";
+                jdbcTemplate.update(insertSql, reviewId, userId);
+            } else {
+                String selectSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
+                Integer currentUseful = jdbcTemplate.queryForObject(selectSql, Integer.class, reviewId, userId);
+                if (currentUseful == -1) {
+                    String updateSql = "UPDATE review_likes SET useful = 1 WHERE review_id = ? AND user_id = ?";
+                    jdbcTemplate.update(updateSql, reviewId, userId);
+                }
             }
+        } catch (Exception e) {
+            throw new NotFoundException("Отзыв с id=" + reviewId + " не найден");
         }
     }
 
     @Override
     public void addDislike(int reviewId, int userId) {
-        checkReviewPresence(reviewId);
-        userStorage.getUserById(userId);
-        String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
         try {
-            Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-            if (currentUseful == 1) {
-                String updateSql = "UPDATE review_likes SET useful = -1 WHERE review_id = ? AND user_id = ?";
-                jdbcTemplate.update(updateSql, reviewId, userId);
+            userStorage.getUserById(userId);
+            String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
+            try {
+                Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
+                if (currentUseful == 1) {
+                    String updateSql = "UPDATE review_likes SET useful = -1 WHERE review_id = ? AND user_id = ?";
+                    jdbcTemplate.update(updateSql, reviewId, userId);
+                }
+            } catch (EmptyResultDataAccessException e) {
+                String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, -1)";
+                jdbcTemplate.update(insertSql, reviewId, userId);
             }
-        } catch (EmptyResultDataAccessException e) {
-            String insertSql = "INSERT INTO review_likes (review_id, user_id, useful) VALUES (?, ?, -1)";
-            jdbcTemplate.update(insertSql, reviewId, userId);
+        } catch (Exception e) {
+            throw new NotFoundException("Отзыв с id=" + reviewId + " не найден");
         }
     }
 
     @Override
     public void deleteLike(int reviewId, int userId) {
-        checkReviewPresence(reviewId);
-        userStorage.getUserById(userId);
-        String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
-        Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-        if (currentUseful == 1) {
-            String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
-            jdbcTemplate.update(deleteSql, reviewId, userId);
+        try {
+            userStorage.getUserById(userId);
+            String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
+            Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
+            if (currentUseful == 1) {
+                String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
+                jdbcTemplate.update(deleteSql, reviewId, userId);
+            }
+        } catch (Exception e) {
+            throw new NotFoundException("Отзыв с id=" + reviewId + " не найден");
         }
     }
 
     @Override
     public void deleteDislike(int reviewId, int userId) {
-        checkReviewPresence(reviewId);
-        userStorage.getUserById(userId);
-        String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
-        Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
-        if (currentUseful == -1) {
-            String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
-            jdbcTemplate.update(deleteSql, reviewId, userId);
-        }
-    }
-
-    private void checkReviewPresence(int reviewId) {
-        String checkSql = "SELECT COUNT(*) FROM REVIEWS WHERE review_id = ?";
-        int count = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId);
-        if (count == 0) {
+        try {
+            userStorage.getUserById(userId);
+            String checkSql = "SELECT useful FROM review_likes WHERE review_id = ? AND user_id = ?";
+            Integer currentUseful = jdbcTemplate.queryForObject(checkSql, Integer.class, reviewId, userId);
+            if (currentUseful == -1) {
+                String deleteSql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
+                jdbcTemplate.update(deleteSql, reviewId, userId);
+            }
+        } catch (Exception e) {
             throw new NotFoundException("Отзыв с id=" + reviewId + " не найден");
         }
     }
-
 }

@@ -262,15 +262,12 @@ public class FilmDbStorage implements FilmStorage {
                 FROM films f
                 JOIN mpa m ON f.mpa = m.mpa_id
                 JOIN likes l ON f.id = l.film_id
-                WHERE f.id IN (
+                JOIN (
                     SELECT l1.film_id
                     FROM likes l1
-                    WHERE l1.user_id = :userId
-                    INTERSECT
-                    SELECT l2.film_id
-                    FROM likes l2
-                    WHERE l2.user_id = :friendId
-                )
+                    JOIN likes l2 ON l1.film_id = l2.film_id
+                    WHERE l1.user_id = :userId AND l2.user_id = :friendId
+                ) common_likes ON f.id = common_likes.film_id
                 GROUP BY f.id, m.mpa_id
                 ORDER BY likes_count DESC
                 """;
@@ -285,50 +282,44 @@ public class FilmDbStorage implements FilmStorage {
         if (query == null || query.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        String sqlDir = """
-                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-                FROM films AS f
-                JOIN mpa ON f.mpa = mpa.mpa_id
-                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
-                LEFT JOIN directors AS d ON fd.director_id = d.director_id
-                LEFT JOIN likes AS l ON f.id = l.film_id
-                WHERE LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%'))
-                GROUP BY f.id
-                ORDER BY COUNT(l.user_id) DESC
-                """;
-        String sqlTitle = """
-                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-                FROM films AS f
-                JOIN mpa ON f.mpa = mpa.mpa_id
-                LEFT JOIN likes AS l ON f.id = l.film_id
-                WHERE LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))
-                GROUP BY f.id
-                ORDER BY COUNT(l.user_id) DESC
-                """;
-        String sqlDirTitle = """
-                SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
-                FROM films AS f
-                JOIN mpa ON f.mpa = mpa.mpa_id
-                LEFT JOIN film_directors AS fd ON f.id = fd.film_id
-                LEFT JOIN directors AS d ON fd.director_id = d.director_id
-                LEFT JOIN likes AS l ON f.id = l.film_id
-                WHERE LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%')) OR LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))
-                GROUP BY f.id
-                ORDER BY COUNT(l.user_id) DESC
-                """;
-        List<Film> films = new ArrayList<>();
-        switch (by) {
-            case "director":
-                films = jdbcTemplate.query(sqlDir, new FilmRowMapper(namedParameterJdbcTemplate), query);
-                break;
-            case "title":
-                films = jdbcTemplate.query(sqlTitle, new FilmRowMapper(namedParameterJdbcTemplate), query);
-                break;
-            case "title,director":
-            case "director,title":
-                films = jdbcTemplate.query(sqlDirTitle, new FilmRowMapper(namedParameterJdbcTemplate), query, query);
-                break;
+        StringBuilder sqlBuilder = new StringBuilder("""
+        SELECT f.id, f.name, f.description, f.duration, f.release_date, mpa.*
+        FROM films AS f
+        JOIN mpa ON f.mpa = mpa.mpa_id
+        LEFT JOIN likes AS l ON f.id = l.film_id
+        """);
+        boolean searchByDirector = by.contains("director");
+        if (searchByDirector) {
+            sqlBuilder.append("""
+            LEFT JOIN film_directors AS fd ON f.id = fd.film_id
+            LEFT JOIN directors AS d ON fd.director_id = d.director_id
+            """);
         }
+        List<String> whereConditions = new ArrayList<>();
+        if (by.contains("title")) {
+            whereConditions.add("LOWER(f.name) LIKE LOWER(CONCAT('%',?,'%'))");
+        }
+        if (searchByDirector) {
+            whereConditions.add("LOWER(d.name) LIKE LOWER(CONCAT('%',?,'%'))");
+        }
+
+        if (!whereConditions.isEmpty()) {
+            sqlBuilder.append("WHERE ")
+                    .append(String.join(" OR ", whereConditions));
+        }
+        sqlBuilder.append("""
+        GROUP BY f.id
+        ORDER BY COUNT(l.user_id) DESC
+        """);
+        List<Film> films;
+        String sql = sqlBuilder.toString();
+
+        if (by.equals("title,director") || by.equals("director,title")) {
+            films = jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate), query, query);
+        } else {
+            films = jdbcTemplate.query(sql, new FilmRowMapper(namedParameterJdbcTemplate), query);
+        }
+
         setFilmDirectors(films);
         return films;
     }
