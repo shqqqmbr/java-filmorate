@@ -7,16 +7,23 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.mapper.FeedRowMapper;
 import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
+import ru.yandex.practicum.filmorate.model.Feed;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.enums.EventTypes;
+import ru.yandex.practicum.filmorate.model.enums.OperationTypes;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 
 @Repository
 public class UserDbStorage implements UserStorage {
+
     private final JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -93,11 +100,12 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    public void addFriend(int userId, int frienId) {
+    public void addFriend(int userId, int friendId) {
         checkUserPresence(userId);
-        checkUserPresence(frienId);
+        checkUserPresence(friendId);
         String sql = "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, userId, frienId, true);
+        jdbcTemplate.update(sql, userId, friendId, true);
+        addUserFeed(friendId, userId, EventTypes.FRIEND, OperationTypes.ADD);
     }
 
     @Override
@@ -106,6 +114,7 @@ public class UserDbStorage implements UserStorage {
         checkUserPresence(friendId);
         String sql = "DELETE FROM friends WHERE user_id = ? AND friend_id = ?";
         jdbcTemplate.update(sql, userId, friendId);
+        addUserFeed(friendId, userId, EventTypes.FRIEND, OperationTypes.REMOVE);
     }
 
     @Override
@@ -117,9 +126,41 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public boolean isFriend(int userId, int friendId) {
+        checkUserPresence(userId);
+        checkUserPresence(friendId);
         String sql = "SELECT * FROM friends WHERE user_id = ? AND friend_id = ?";
         SqlRowSet rowSet = jdbcTemplate.queryForRowSet(sql, userId, friendId);
         return rowSet.next();
+    }
+
+    @Override
+    public List<Feed> getUserFeed(int userId) {
+        checkUserPresence(userId);
+        String sql = "SELECT * FROM feed WHERE user_id = ?";
+        return jdbcTemplate.query(sql, new FeedRowMapper(), userId);
+    }
+
+    @Override
+    public void addUserFeed(long entityId, int userId, EventTypes eventType, OperationTypes operation) {
+        checkUserPresence(userId);
+        String sql = """
+                INSERT INTO feed (entity_id, user_id, event_type, operation_type, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+                """;
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(con -> {
+            PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, entityId);
+            ps.setInt(2, userId);
+            ps.setString(3, eventType.toString());
+            ps.setString(4, operation.toString());
+            ps.setTimestamp(5, Timestamp.from(Instant.now()));
+            return ps;
+        }, keyHolder);
+
+        if (keyHolder.getKey() == null) {
+            throw new RuntimeException("Не удалось добавить событие");
+        }
     }
 
     private void checkUserPresence(int userId) {

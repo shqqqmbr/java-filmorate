@@ -8,10 +8,12 @@ import ru.yandex.practicum.filmorate.annotation.MinimumDate;
 
 import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Data
 public class Film {
+
     private int id;
     @NotBlank(message = "Название не может быть пустым")
     private String name;
@@ -22,6 +24,7 @@ public class Film {
     @Positive(message = "Продолжительность должна быть больше 0")
     private int duration;
     private Set<Integer> likes = new HashSet<>();
-    private Set<Genre> genres = new HashSet<>();
+    private Set<Genre> genres = new LinkedHashSet<>();
+    private Set<Director> directors = new HashSet<>();
     private Mpa mpa;
 }
